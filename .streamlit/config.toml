@@ -1,0 +1,6 @@
+# Streamlit settings (safe to commit; secrets go in .streamlit/secrets.toml, which is git-ignored).
+[client]
+toolbarMode = "viewer"  # Hide developer-only menu items such as "Deploy".
+
+[browser]
+gatherUsageStats = false

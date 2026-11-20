@@ -1,0 +1,59 @@
+# Public MongoDB customer stories used for the story library (EMEA companies).
+# One URL per line. Lines starting with # are ignored.
+# Financial services and insurance
+https://www.mongodb.com/solutions/customer-case-studies/lombard-odier
+https://www.mongodb.com/solutions/customer-case-studies/credit-agricole
+https://www.mongodb.com/solutions/customer-case-studies/mapfre
+https://www.mongodb.com/solutions/customer-case-studies/price-forbes
+https://www.mongodb.com/solutions/customer-case-studies/mypos
+https://www.mongodb.com/solutions/customer-case-studies/bpifrance
+https://www.mongodb.com/solutions/customer-case-studies/hype
+https://www.mongodb.com/solutions/customer-case-studies/edenred
+https://www.mongodb.com/solutions/customer-case-studies/comercia-global-payments
+# Retail and e-commerce
+https://www.mongodb.com/solutions/customer-case-studies/otto
+https://www.mongodb.com/solutions/customer-case-studies/idealo
+https://www.mongodb.com/solutions/customer-case-studies/decathlon
+https://www.mongodb.com/solutions/customer-case-studies/vestiaire
+https://www.mongodb.com/solutions/customer-case-studies/ica-gruppen
+https://www.mongodb.com/solutions/customer-case-studies/loreal
+https://www.mongodb.com/solutions/customer-case-studies/mountain-warehouse
+# Manufacturing and IoT
+https://www.mongodb.com/solutions/customer-case-studies/vaillant
+https://www.mongodb.com/solutions/customer-case-studies/electrolux
+https://www.mongodb.com/solutions/customer-case-studies/michelin
+https://www.mongodb.com/solutions/customer-case-studies/wattsense
+https://www.mongodb.com/solutions/customer-case-studies/zf
+https://www.mongodb.com/solutions/customer-case-studies/brembo-solutions
+https://www.mongodb.com/solutions/customer-case-studies/thales
+# Energy
+https://www.mongodb.com/solutions/customer-case-studies/repsol
+https://www.mongodb.com/solutions/customer-case-studies/total-energies
+https://www.mongodb.com/solutions/customer-case-studies/enpal
+# Telecoms and public sector
+https://www.mongodb.com/solutions/customer-case-studies/swisscom
+https://www.mongodb.com/solutions/customer-case-studies/poste-italiane
+https://www.mongodb.com/solutions/customer-case-studies/department-for-work-and-pensions
+https://www.mongodb.com/solutions/customer-case-studies/dt
+https://www.mongodb.com/solutions/customer-case-studies/stackit
+# Healthcare
+https://www.mongodb.com/solutions/customer-case-studies/novo-nordisk
+# Software and AI
+https://www.mongodb.com/solutions/customer-case-studies/teamsystem
+https://www.mongodb.com/solutions/customer-case-studies/datev
+https://www.mongodb.com/solutions/customer-case-studies/nexthink
+https://www.mongodb.com/solutions/customer-case-studies/cognigy
+https://www.mongodb.com/solutions/customer-case-studies/vainu
+https://www.mongodb.com/solutions/customer-case-studies/elevenlabs
+# Travel, transport and media
+https://www.mongodb.com/solutions/customer-case-studies/tui
+https://www.mongodb.com/solutions/customer-case-studies/sncfconnect
+https://www.mongodb.com/solutions/customer-case-studies/amadeus
+https://www.mongodb.com/solutions/customer-case-studies/ft
+https://www.mongodb.com/solutions/customer-case-studies/swiss-post
+https://www.mongodb.com/solutions/customer-case-studies/bollere-logistics
+https://www.mongodb.com/solutions/customer-case-studies/fairtiq
+# Gaming and betting
+https://www.mongodb.com/solutions/customer-case-studies/betclic
+https://www.mongodb.com/solutions/customer-case-studies/bede
+https://www.mongodb.com/solutions/customer-case-studies/futureplay-games

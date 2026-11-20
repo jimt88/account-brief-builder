@@ -1,0 +1,1396 @@
+[
+  {
+    "company": "Lombard Odier",
+    "hq_country": "Switzerland",
+    "industry": "Financial Services",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB's modernization services"
+    ],
+    "use_case": "Gen AI",
+    "challenge": "Lombard Odier needed to modernize its legacy banking infrastructure, reduce technical complexity, and accelerate innovation while maintaining security and regulatory compliance.",
+    "solution": "The bank leveraged MongoDB Modernization Factory and Gen AI to migrate from SQL, modernize its Java-based systems, and automate testing, significantly accelerating its transformation.",
+    "outcomes": [
+      {
+        "claim": "50-60x faster code migration",
+        "quote": "Migrating simple code is now 50 to 60 times quicker, and we can migrate small applications 20 times faster to MongoDB."
+      },
+      {
+        "claim": "20x faster small app migrations",
+        "quote": "Migrating simple code is now 50 to 60 times quicker, and we can migrate small applications 20 times faster to MongoDB."
+      },
+      {
+        "claim": "Regression testing reduced from 3 days to 3 hours",
+        "quote": "Regression testing also went from three days to three hours with automated test generation."
+      }
+    ],
+    "summary": "Lombard Odier partnered with MongoDB to modernize its legacy banking infrastructure and accelerate digital transformation using generative AI and modernization services. By leveraging MongoDB, the centuries-old private bank successfully reduced technical debt, accelerated code migration, and automated regression testing.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/lombard-odier",
+    "fetched_at": "2026-11-19T23:34:36.966697+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "Crédit Agricole",
+    "hq_country": "France",
+    "industry": "Financial Services",
+    "mongodb_products": [
+      "Enterprise Advanced",
+      "MongoDB"
+    ],
+    "use_case": "Content Management",
+    "challenge": "Crédit Agricole’s legacy systems limited agility and slowed service innovation across 39 regional banks, hindering delivery of fast, secure, omnichannel customer experiences.",
+    "solution": "MongoDB powers shared platforms used by autonomous squads and tribes to streamline 27 digital journeys, enhance resiliency, and enable real-time document-based workflows.",
+    "outcomes": [
+      {
+        "claim": "Agile delivery across 39 regional banks",
+        "quote": "Crédit Agricole’s legacy systems limited agility and slowed service innovation across 39 regional banks, hindering delivery of fast, secure, omnichannel customer experiences."
+      },
+      {
+        "claim": "Resilient, scalable infrastructure",
+        "quote": "Today, when the CA-TS solution runs on an internal infrastructure, it can connect to the internet and scale up without any difficulties."
+      }
+    ],
+    "summary": "Crédit Agricole modernized its information system across 39 regional banks using MongoDB to manage digital journeys in document mode. By empowering autonomous squads and tribes with a shared MongoDB platform, the bank enhanced resiliency, accelerated innovation, and streamlined digital workflows.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/credit-agricole",
+    "fetched_at": "2026-11-19T23:34:55.997506+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "MAPFRE",
+    "hq_country": "Spain",
+    "industry": "Insurance",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Atlas Vector Search"
+    ],
+    "use_case": "Customer Experience",
+    "challenge": "MAPFRE relied on relational databases that required complex object-relational mapping, which slowed down development and increased the risk of service outages during app updates. The rigid table structure created friction for developers who naturally work with JSON objects.",
+    "solution": "The company migrated to MongoDB Atlas to store JSON objects natively, eliminating object-relational mapping friction and enabling flexible schema updates without service downtime. They leveraged advanced features like geospatial queries and scaling capabilities to support their broad catalog of customer-facing apps.",
+    "outcomes": [
+      {
+        "claim": "Streamlined development and enabled rapid app adaptation",
+        "quote": "By doing so, the company has streamlined development, enabling rapid app adaptation, a seamless user experience, and cloud-agnostic flexibility for global operations."
+      },
+      {
+        "claim": "Avoided the need to create separate databases for every use case",
+        "quote": "MongoDB Atlas means we don’t need to create a separate database for each use case."
+      },
+      {
+        "claim": "Empowered developers to work faster and maintain systems easier",
+        "quote": "It doesn’t complicate life for developers; it empowers them to work faster and it’s easier to maintain than our legacy environment."
+      }
+    ],
+    "summary": "MAPFRE modernized its global insurance applications by replacing legacy relational databases with MongoDB Atlas. This transition eliminated object-relational mapping headaches, boosted developer productivity, and provided the cloud-agnostic flexibility needed to power 24/7 customer experiences. By standardizing on MongoDB, the multinational insurer has gained a competitive edge and the agility to embrace future innovations like generative AI.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/mapfre",
+    "fetched_at": "2026-11-19T23:35:13.308778+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "Price Forbes",
+    "hq_country": "United Kingdom",
+    "industry": "Insurance",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "Atlas Vector Search"
+    ],
+    "use_case": "Quote-and-bind insurance platform",
+    "challenge": "Dealing with the polymorphic nature of specialty insurance risks created an unsustainable environment when using rigid legacy relational databases like MySQL.",
+    "solution": "Price Forbes moved away from legacy databases and Cosmos DB to MongoDB Atlas, building a next-generation Placement Hub using reactive code and JSON data models.",
+    "outcomes": [
+      {
+        "claim": "Performance more than doubled",
+        "quote": "The results were staggering: our performance more than doubled."
+      },
+      {
+        "claim": "Achieved a 90% adoption rate",
+        "quote": "It’s achieved a 90% adoption rate for the Placement Hub—a rate that’s unheard of in the insurance industry."
+      }
+    ],
+    "summary": "Price Forbes, a leading specialty insurance broker, replaced rigid legacy databases with MongoDB Atlas to power its high-performance quote-and-bind system and Placement Hub. By leveraging MongoDB's flexible JSON data model and reactive programming, the company doubled its system performance, achieved a 90% adoption rate, and set the stage for future AI innovations using Atlas Vector Search.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/price-forbes",
+    "fetched_at": "2026-11-19T23:35:56.700050+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "myPOS",
+    "hq_country": "Europe",
+    "industry": "Financial Services",
+    "mongodb_products": [
+      "MongoDB Enterprise Advanced"
+    ],
+    "use_case": "Payments",
+    "challenge": "The company's systems were built on Microsoft SQL, a reliable but increasingly rigid setup for a business aiming to mushroom its daily real-time transactions, where doubling transactions year-over-year revealed cracks in performance, resilience, and scalability.",
+    "solution": "myPOS adopted MongoDB Enterprise Advanced to redesign core systems around MongoDB, enabling single-digit millisecond latency, real-time security and fraud checks, and seamless scaling across multiple data centers.",
+    "outcomes": [
+      {
+        "claim": "Processes over 1.5 million daily transactions",
+        "quote": "The platform now validates more than 1.5 million payments per day on average – up from just 700,000 a year ago – with peaks expected to surpass two million during pending seasonal spikes."
+      },
+      {
+        "claim": "System availability above 99.95%",
+        "quote": "System availability is now consistently above 99.95%, with downtime for maintenance reduced from 10 minutes to just 10 seconds."
+      },
+      {
+        "claim": "Scalable throughput increase",
+        "quote": "In performance testing, the system has scaled to eight times its previous throughput, with a clear roadmap to reach 10 times more capacity in 2025."
+      }
+    ],
+    "summary": "European fintech myPOS replaced its rigid Microsoft SQL infrastructure with MongoDB Enterprise Advanced to support explosive transaction growth and deliver instant three-second payments. The transition enabled the company to scale throughput, achieve 99.95% system availability, and efficiently process over 1.5 million daily transactions while maintaining low latency and real-time security.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/mypos",
+    "fetched_at": "2026-11-19T23:36:52.289753+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "Bpifrance",
+    "hq_country": "France",
+    "industry": "Finance",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Digital transformation",
+    "challenge": "Bpifrance relied on a legacy basic banking system with processing on D+1 or in batch mode, and their chatbot had trouble understanding complex queries without sufficient context.",
+    "solution": "Bpifrance modernized its information system by migrating to MongoDB Atlas, supporting 35 applications and enabling real-time core banking, enhanced chatbot context, 360-degree research, and data federation for reporting and risk analysis.",
+    "outcomes": [
+      {
+        "claim": "Real-time core banking achieved through data streaming and MongoDB",
+        "quote": "Thanks to the combination of Confluent and MongoDB, we have moved to real-time Core Banking."
+      },
+      {
+        "claim": "Chatbot answers made much more relevant with context",
+        "quote": "With these tools, we bring back context and the answers are much more relevant."
+      }
+    ],
+    "summary": "Bpifrance successfully modernized its information system by migrating 35 applications to MongoDB Atlas. By partnering with MongoDB, the financial institution achieved real-time core banking, improved chatbot context and relevance, and streamlined reporting and risk analysis across multiple business lines.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/bpifrance",
+    "fetched_at": "2026-11-20T01:05:06.050676+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "HYPE",
+    "hq_country": "Italy",
+    "industry": "Financial Services",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Payments Personalization",
+    "challenge": "HYPE needed a resilient and scalable data foundation for its growing fintech ecosystem with zero tolerance for data loss and latency. Managing their mission-critical services required a database capable of handling high-traffic volumes and strict regulatory requirements without operational complexity.",
+    "solution": "HYPE adopted MongoDB Atlas as its primary data foundation to power authentication, fraud detection, and backend architecture. They leveraged features such as continuous backups, cross-region replication, and Microsoft Azure integration to ensure high availability and low-latency performance.",
+    "outcomes": [
+      {
+        "claim": "Zero-downtime migration from the previous database system",
+        "quote": "One of the most immediate and measurable successes has been the seamless migration from the previous database system, with zero downtime."
+      },
+      {
+        "claim": "High performance for login services handling traffic spikes",
+        "quote": "MongoDB Atlas's ability to scale on demand ensures high performance even under traffic spikes, directly enhancing the user experience and strengthening platform security."
+      }
+    ],
+    "summary": "Neobank HYPE uses MongoDB Atlas to scale its digital financial ecosystem and support 1.9 million users with zero downtime. By leveraging Atlas for authentication, fraud detection, and multi-region replication, HYPE achieves high availability, transparent pricing, and fast query performance.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/hype",
+    "fetched_at": "2026-11-20T01:05:18.319570+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "Edenred",
+    "hq_country": "France",
+    "industry": "Financial Services",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Payments",
+    "challenge": "Historically, each country operated its own legacy technology stack, creating fragmented systems that limited scalability and slowed global innovation. The platform needed to bridge the physical world with real-time digital payment processing while handling the intense lunchtime rush.",
+    "solution": "Using MongoDB Atlas, Edenred built a dual-repository microservices architecture structured around a transaction repository and a point-of-sale repository to manage diverse global merchant data and real-time payments.",
+    "outcomes": [
+      {
+        "claim": "Scales across four countries ensuring consistency and instant insights",
+        "quote": "Edenred scales across four countries with MongoDB Atlas, ensuring 100% data consistency and instant insights for over one million users."
+      }
+    ],
+    "summary": "Edenred modernized its global digital payment solutions by launching Edenred+ on MongoDB Atlas. Using a dual-repository microservices architecture, the company successfully unifies fragmented legacy systems, handles millions of transactions during peak lunchtime hours, and delivers a scalable, high-performance payment super app across multiple countries.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/edenred",
+    "fetched_at": "2026-11-20T01:05:29.515801+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "Comercia Global Payments",
+    "hq_country": "Spain",
+    "industry": "Financial Services",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Professional Services"
+    ],
+    "use_case": "Payments Modernization",
+    "challenge": "Comercia relied on a rigid legacy infrastructure and faced risks from single cloud provider outages, leading to a critical need for continuous, secure, real-time shared data across multiple clouds to maintain strict availability SLAs.",
+    "solution": "Comercia built an active-active, multi-cloud cluster orchestrated entirely by MongoDB Atlas across Azure, Google Cloud, and AWS, leveraging MongoDB Professional Services for expert architectural guidance.",
+    "outcomes": [
+      {
+        "claim": "Achieved six-nines availability",
+        "quote": "Comercia achieved six-nines resilience with MongoDB Atlas, ensuring 3-second multi-cloud failover and near-zero downtime updates for global expansion."
+      }
+    ],
+    "summary": "Comercia Global Payments overcame rigid legacy constraints and single-cloud risks by partnering with MongoDB to build a proprietary payment gateway. Using MongoDB Atlas, they deployed an innovative active-active multi-cloud cluster across Azure, Google Cloud, and AWS that delivers six-nines availability and rapid European expansion.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/comercia-global-payments",
+    "fetched_at": "2026-11-20T01:05:41.327944+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Financial Services & Insurance"
+  },
+  {
+    "company": "OTTO",
+    "hq_country": "Germany",
+    "industry": "Retail",
+    "mongodb_products": [
+      "MongoDB"
+    ],
+    "use_case": "E-commerce Personalization",
+    "challenge": "Existing legacy systems were slowing OTTO down, as loading new catalog updates for two million products often took all day. The previous site was static, slow, and expensive to change, requiring reading from dozens of tables to update a single product.",
+    "solution": "OTTO built a MongoDB-powered catalog using MongoDB's flexible data model, allowing all product information to be read from a single JSON document. This enabled fast reads, rapid schema iteration, and real-time capture of customer behavior and events.",
+    "outcomes": [
+      {
+        "claim": "Catalog update time reduced from 12 hours to 15 minutes",
+        "quote": "Updates that used to take 12 hours are now done in 15 minutes."
+      },
+      {
+        "claim": "Scaled up to handle 800 page impressions per second",
+        "quote": "OTTO has scaled up to 800 page impressions per second that generate 10,000 events per second – every click, every hover is stored in MongoDB."
+      }
+    ],
+    "summary": "OTTO, Germany's top online fashion and lifestyle retailer, transformed its e-commerce personalization and catalog management using MongoDB. By replacing slow relational database workflows with MongoDB's flexible data model, OTTO reduced catalog update times from 12 hours to 15 minutes and accelerated site responsiveness. This agile, MongoDB-powered architecture empowers parallel development teams to deliver real-time personalization for over two million daily visitors.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/otto",
+    "fetched_at": "2026-11-19T23:38:24.363628+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "idealo",
+    "hq_country": "Germany",
+    "industry": "Retail",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Modernization Migrations",
+    "challenge": "idealo faced rapid traffic growth and seasonal demand spikes, but struggled to scale its self-managed setup on-premises, leading to infrastructure bottlenecks that slowed growth.",
+    "solution": "idealo migrated to MongoDB Atlas on AWS to boost scalability, reduce costs, and free up resources for faster feature innovation.",
+    "outcomes": [
+      {
+        "claim": "84% reduction in required resources",
+        "quote": "The number of shards needed has dropped from 25 to 12, while the size of each node has reduced by two-thirds."
+      },
+      {
+        "claim": "6x growth over four years",
+        "quote": "The growing popularity of idealo, with traffic increasing six times in four years, meant idealo was running the biggest on-premises MongoDB database in Europe."
+      },
+      {
+        "claim": "200,000 queries processed per second",
+        "quote": "idealo can support up to 200,000 queries per second and 60,000 updates per second."
+      }
+    ],
+    "summary": "idealo, Europe’s largest price-comparison service, migrated its massive offer-store database from an on-premises setup to MongoDB Atlas on AWS to handle intense read and write workloads. By moving to MongoDB Atlas, the company eliminated hardware constraints, cut required resources, and achieved the scalability needed to support rapid traffic growth.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/idealo",
+    "fetched_at": "2026-11-19T23:39:08.105732+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "Decathlon",
+    "hq_country": "France",
+    "industry": "Retail",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Personalization Analytics",
+    "challenge": "Decathlon struggled to scale their customer review system globally, needing resilient operations during node failures and flexible load distribution across regions. Its SQL-based system couldn’t handle the massive influx of requests ranging from hundreds to thousands per second during peak times.",
+    "solution": "They implemented MongoDB Atlas with auto-scaling, document-based models, and sharding, enabling horizontal scalability, global load distribution, and high availability.",
+    "outcomes": [
+      {
+        "claim": "Continuous operations despite node failures",
+        "quote": "With MongoDB, we’ve built a system where even during node failures, operations continue almost unnoticed."
+      }
+    ],
+    "summary": "Decathlon transformed its customer review management system by migrating to MongoDB Atlas, resolving scalability and performance bottlenecks in its legacy SQL infrastructure. The new NoSQL architecture delivers high availability, automatic scaling, and global load distribution across more than 60 countries.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/decathlon",
+    "fetched_at": "2026-11-19T23:39:48.661879+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "Vestiaire Collective",
+    "hq_country": "France",
+    "industry": "E-commerce and Retail",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Business Agility Catalog Consumer Services",
+    "challenge": "As sales rose across the platform, the increased activity began leading to delays and friction, leaving buyers waiting weeks for their vintage products to arrive. The legacy data platform could no longer process requests in real time, with requests taking several seconds to complete.",
+    "solution": "Vestiaire Collective migrated five core projects to MongoDB Atlas on AWS to power a microservices architecture and manage their growing product catalogue, content management system, rule engine manager, and social newsfeed.",
+    "outcomes": [
+      {
+        "claim": "Handled massive daily product volume",
+        "quote": "The company’s MongoDB Atlas deployment now handles around 17,000 new products every day -- a feat that helped the company double its sales in 2020."
+      },
+      {
+        "claim": "Zero downtime for maintenance and migration",
+        "quote": "The fact that it doesn’t need to be patched or updated means there’s zero downtime – even when migrating across critical functions."
+      }
+    ],
+    "summary": "Vestiaire Collective partnered with MongoDB to scale its pre-owned fashion e-commerce platform and replace its legacy database with MongoDB Atlas. By moving to a document database, the engineering team eliminated delays, improved developer efficiency, and successfully handled thousands of new daily products with zero downtime. This modern infrastructure allows the company to focus on sustainable growth and delivering an enhanced customer experience.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/vestiaire",
+    "fetched_at": "2026-11-19T23:40:06.738570+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "ICA Gruppen",
+    "hq_country": "Sweden",
+    "industry": "Retail",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Atlas Charts"
+    ],
+    "use_case": "Migrations",
+    "challenge": "ICA Gruppen's legacy document database lacked key functions for development speed and efficiency, requiring developers to perform workarounds due to limited compliance with MongoDB standards. Issues with tooling, such as monitoring and index management, further complicated the system.",
+    "solution": "The company migrated to MongoDB Atlas in under a month by directly replicating its existing version and writing updates to both systems simultaneously. They now use MongoDB Atlas as an operational data layer and leverage MongoDB Atlas Charts to visualize sales data efficiently.",
+    "outcomes": [
+      {
+        "claim": "Administrative needs have virtually disappeared, allowing the team to concentrate on development speed.",
+        "quote": "It’s so easy for all our teams to use MongoDB."
+      },
+      {
+        "claim": "Platform is extremely stable and easy to manage.",
+        "quote": "MongoDB is a super stable platform."
+      }
+    ],
+    "summary": "ICA Gruppen migrated from a legacy document database to MongoDB Atlas to optimize their developer experience and improve query performance. By using MongoDB as an operational data layer and integrating MongoDB Atlas Charts, the retailer has enhanced business intelligence and democratized data access.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/ica-gruppen",
+    "fetched_at": "2026-11-19T23:41:17.651472+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "L’Oréal",
+    "hq_country": "France",
+    "industry": "Manufacturing/Retail",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Artificial Intelligence",
+    "challenge": "L’Oréal needed to process real-time complex calculations on vast volumes of data without latency using an existing NoSQL database that lacked performance and required excessive backend scripting.",
+    "solution": "L’Oréal migrated to MongoDB Atlas on Google Cloud to improve data processing speed, simplify management, and enable seamless scalability for its tech applications.",
+    "outcomes": [
+      {
+        "claim": "Latency reduced significantly",
+        "quote": "Latency reduced from seconds to just 10ms"
+      },
+      {
+        "claim": "Improved developer efficiency and agility",
+        "quote": "MongoDB Atlas doesn’t just solve our performance issues It makes life easier for web developers who can build and maintain simpler, more straightforward code."
+      }
+    ],
+    "summary": "L’Oréal migrated their Tech Accelerator application from an inadequate NoSQL database to MongoDB Atlas on Google Cloud to handle complex real-time calculations. The transition successfully reduced latency from seconds to 10 milliseconds, streamlined backend code, and increased developer efficiency.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/loreal",
+    "fetched_at": "2026-11-20T01:06:13.366343+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "Mountain Warehouse",
+    "hq_country": "United Kingdom",
+    "industry": "Retail",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Mobile",
+    "challenge": "Mountain Warehouse needed to build reliable offline-first mobile apps for store staff to handle everyday tasks despite patchy and poor in-store Wi-Fi connectivity.",
+    "solution": "They used MongoDB Atlas and Atlas Device Sync to build offline-first Android applications that sync data seamlessly across edge devices and empower shop floor staff.",
+    "outcomes": [
+      {
+        "claim": "Reliable data syncing despite poor Wi-Fi connectivity",
+        "quote": "Wi-Fi can be patchy in stores."
+      }
+    ],
+    "summary": "Mountain Warehouse, the UK's leading outdoor clothing and equipment retailer, leveraged MongoDB Atlas and Atlas Device Sync to create 25 microservices and offline-first mobile applications. These tools empower shop floor staff to manage stock counts, returns, and customer queries seamlessly, even in stores with poor Wi-Fi connectivity. By moving tasks away from the till, Mountain Warehouse has successfully improved the in-store experience for both staff and customers.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/mountain-warehouse",
+    "fetched_at": "2026-11-20T01:06:28.423765+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Retail & Consumer"
+  },
+  {
+    "company": "Vaillant",
+    "hq_country": "Germany",
+    "industry": "Energy",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "Atlas App Services",
+      "MongoDB Charts"
+    ],
+    "use_case": "Internet of Things",
+    "challenge": "As data volumes grew rapidly from connected HVAC devices, scaling Vaillant's existing database became difficult, leading to slower response times, regular system crashes, and the inability to find and filter relevant data.",
+    "solution": "Vaillant migrated to MongoDB Atlas on Microsoft Azure, leveraging its scalable architecture and flexible data model to handle massive streams of IoT time-series data.",
+    "outcomes": [
+      {
+        "claim": "No downtime during migration",
+        "quote": "When we implemented MongoDB Atlas, there was no downtime at all, and our customers immediately noticed the performance improvements."
+      },
+      {
+        "claim": "Decreased database size by over 99%",
+        "quote": "With MongoDB Atlas, powerful secondary indexing, and the aggregation framework, the team has decreased its database size by over 99% all the while increasing the throughput of its API by 250 percent."
+      },
+      {
+        "claim": "Increased API throughput by 250 percent",
+        "quote": "With MongoDB Atlas, powerful secondary indexing, and the aggregation framework, the team has decreased its database size by over 99% all the while increasing the throughput of its API by 250 percent."
+      }
+    ],
+    "summary": "Vaillant scaled its IoT operations for over 30 million customers by migrating to MongoDB Atlas on Microsoft Azure. The fully managed database service eliminated system crashes, eliminated downtime during migration, and reduced database size by over 99% while increasing API throughput by 250 percent.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/vaillant",
+    "fetched_at": "2026-11-19T23:41:35.048102+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Manufacturing & Automotive"
+  },
+  {
+    "company": "Electrolux",
+    "hq_country": "Sweden",
+    "industry": "Manufacturing & Retail",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Mobile",
+    "challenge": "To support the app’s development, Electrolux needed a NoSQL database, something that was scalable, a fast solution to read/write data, with global and multi-regional set up.",
+    "solution": "Electrolux implemented MongoDB to capture appliance events and simple telemetry data, building a personalized picture for each customer and app user via a mobile application.",
+    "outcomes": [
+      {
+        "claim": "Reliable data growth management",
+        "quote": "Our focus is to make sure we’re prepared for the growth of data and the growth of the number of appliances that are connected."
+      }
+    ],
+    "summary": "Electrolux leverages MongoDB Atlas to power a mobile app that connects smart household appliances, helping consumers monitor usage, save energy, and improve sustainability. By moving to Atlas, the development team offloaded hosting and maintenance responsibilities while gaining a scalable and reliable data platform.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/electrolux",
+    "fetched_at": "2026-11-19T23:41:51.835787+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Manufacturing & Automotive"
+  },
+  {
+    "company": "Michelin",
+    "hq_country": "France",
+    "industry": "Industrial Manufacturing and Services",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Content Management Catalog",
+    "challenge": "Michelin’s PS9 master data management tool on a costly SaaS platform was slow, inflexible, and inefficient, causing delays, rising costs, and user frustration across its global supply chain.",
+    "solution": "Migrating the PS9 supply chain application to MongoDB Atlas enabled a document-driven architecture that gave the team full control, simplified support, and facilitated real-time data management with native Kafka integration.",
+    "outcomes": [
+      {
+        "claim": "Processing time cut from 8 hours to 24 seconds",
+        "quote": "Feature requests that once took up to two years to implement are now completed in just 20 days, while processing times and calculations have been reduced from 8 hours to a mere 24 seconds."
+      },
+      {
+        "claim": "Features delivered significantly faster",
+        "quote": "Feature requests that once took up to two years to implement are now completed in just 20 days, while processing times and calculations have been reduced from 8 hours to a mere 24 seconds."
+      },
+      {
+        "claim": "Significantly improved application responsiveness",
+        "quote": "“We have a responsiveness that is mind blowing,” said Martin-Prével."
+      },
+      {
+        "claim": "Shifted team focus from fixing issues to future innovation",
+        "quote": "“We have moved from complaining to thinking about the future.”"
+      }
+    ],
+    "summary": "Michelin modernized its core PS9 master data management and supply chain application by migrating from an inflexible SaaS platform to MongoDB Atlas. This transition eliminated shadow IT, drastically reduced processing times, and slashed feature delivery time from years to days. By leveraging MongoDB, Michelin regained control over its architecture and empowered developers to focus on innovation.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/michelin",
+    "fetched_at": "2026-11-19T23:42:09.155641+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Manufacturing & Automotive"
+  },
+  {
+    "company": "Wattsense",
+    "hq_country": "France",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "IoT Single View",
+    "challenge": "Wattsense needed a low-overhead, reliable database to ingest and query diverse IoT sensor data from buildings—handling metadata, time-series, and configurations at scale across Europe.",
+    "solution": "Wattsense chose MongoDB Atlas for its flexible document model, native time series support, aggregation framework, and ease of scaling — consolidating systems and simplifying ops.",
+    "outcomes": [
+      {
+        "claim": "Achieved zero downtime since 2018",
+        "quote": "That’s been amazing"
+      },
+      {
+        "claim": "Consolidated SQL and NoSQL into one system",
+        "quote": "For configuration, it's MongoDB; for managing metadata, it’s MongoDB; and for time series it’s MongoDB."
+      },
+      {
+        "claim": "Efficient management of 600 GB physical and 1 TB logical data",
+        "quote": "Today, MongoDB manages around 600 gigabytes of physical data and 1TB of logical data, covering everything from device metadata to streaming sensor inputs, all within a unified system."
+      }
+    ],
+    "summary": "Wattsense, a Siemens company providing smart energy efficiency solutions, relies on MongoDB Atlas to manage metadata, configurations, and time-series data for IoT devices across Europe. By consolidating their architecture into MongoDB, they achieved zero downtime since 2018, simplified operations, and efficiently scaled to handle growing data volumes.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/wattsense",
+    "fetched_at": "2026-11-19T23:42:22.137717+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "ZF",
+    "hq_country": "Germany",
+    "industry": "Transport and logistics",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Atlas Search",
+      "MongoDB Atlas Charts",
+      "Time Series",
+      "Application Services"
+    ],
+    "use_case": "Fleet orchestration",
+    "challenge": "ZF's legacy environment was not scalable enough to support their new SCALAR SaaS offering, which needs to handle billions of monthly messages and 50 gigabytes of incoming data every day from over 300,000 connected devices. They needed a reliable and flexible database capable of handling different types of data in real-time while moving from on-premises to the public cloud.",
+    "solution": "ZF implemented MongoDB Atlas as a cloud-agnostic database foundation to support their SCALAR fleet orchestration platform, utilizing features like Time Series collections, Online Archive, and Atlas Charts. They sharded data horizontally across clusters and used templates and automation to streamline development and reduce storage size.",
+    "outcomes": [
+      {
+        "claim": "MongoDB helps the company innovate quickly and release new features faster.",
+        "quote": "It helps us to innovate quickly and release new features faster, which is great for honing our competitive edge."
+      },
+      {
+        "claim": "MongoDB has become the default database system of choice.",
+        "quote": "In the beginning, MongoDB was an option for our teams, now it has become the default database system of choice."
+      }
+    ],
+    "summary": "ZF partnered with MongoDB to scale its SCALAR fleet orchestration platform, moving from legacy infrastructure to MongoDB Atlas in the cloud. The platform now seamlessly handles billions of monthly messages from hundreds of thousands of connected vehicles while reducing storage costs and developer friction. MongoDB has become ZF's default database, empowering the company to deliver real-time insights and release new features faster.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/zf",
+    "fetched_at": "2026-11-20T01:06:57.709521+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Manufacturing & Automotive"
+  },
+  {
+    "company": "Brembo Solutions",
+    "hq_country": "Italy",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Gen AI",
+    "challenge": "As Brembo Solutions evolved into a market-facing innovator, its technical requirements grew to demand high standards of scalability, availability, data privacy, and robust cybersecurity. To move faster, reduce technical debt, and keep its development centered on innovation rather than infrastructure, the company needed a new database.",
+    "solution": "Brembo Solutions uses MongoDB Atlas to power ALCHEMIX, delivering fast, secure, and flexible R&D formulation and supporting development teams with a suite of features that streamline product creation and iteration.",
+    "outcomes": [
+      {
+        "claim": "Fast data retrieval for AI models",
+        "quote": "Without MongoDB Atlas, it wouldn't have been possible for ALCHEMIX to deliver the speed of data retrieval our users expect."
+      }
+    ],
+    "summary": "Brembo Solutions leverages MongoDB Atlas as the data foundation for ALCHEMIX, its AI-powered recipe formulator designed to accelerate R&D. By utilizing Atlas, the company achieved faster data retrieval, robust security, and streamlined development cycles to deliver scalable SaaS products to customers across industries.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/brembo-solutions",
+    "fetched_at": "2026-11-20T01:07:08.510867+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Manufacturing & Automotive"
+  },
+  {
+    "company": "Thales",
+    "hq_country": "France",
+    "industry": "Aerospace and Defense",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Community Edition"
+    ],
+    "use_case": "Migrations",
+    "challenge": "Thales needed to replace an unreliable and outdated database that required physical maintenance visits to aircraft for content updates. The previous system suffered from response time bottlenecks, stability issues, and pricing opacity.",
+    "solution": "Thales migrated its ground-based infrastructure from Azure Cosmos DB to MongoDB Atlas with minimal code changes. This unified their database stack with the MongoDB Community Edition already running on board the aircraft.",
+    "outcomes": [
+      {
+        "claim": "Cut costs and improved performance tenfold",
+        "quote": "With MongoDB Atlas, Thales cut costs and boosted performance by a factor of 10."
+      },
+      {
+        "claim": "Eliminated the need to ground aircraft for updates",
+        "quote": "We no longer have to immobilize a plane just to deliver an update."
+      },
+      {
+        "claim": "Enabled daily incremental content updates for airlines",
+        "quote": "Thanks to MongoDB Atlas, airlines can run daily incremental updates of their content and manage it themselves."
+      }
+    ],
+    "summary": "Thales migrated its in-flight entertainment ground systems from Azure Cosmos DB to MongoDB Atlas to eliminate technical debt and avoid grounding aircraft for content updates. By moving to MongoDB Atlas, Thales achieved a tenfold performance improvement, reduced operating costs, and empowered airlines to perform daily incremental content updates.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/thales",
+    "fetched_at": "2026-11-20T01:07:22.682596+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Manufacturing & Automotive"
+  },
+  {
+    "company": "Repsol",
+    "hq_country": "Spain",
+    "industry": "Energy",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Time Series",
+      "MongoDB Online Archive",
+      "MongoDB Atlas Data API"
+    ],
+    "use_case": "Analytics Edge Modernization",
+    "challenge": "Repsol needed to handle massive volumes of raw data from its renewable energy plants and provide IT-friendly, centralized access to operational information without relying on isolated OT tools.",
+    "solution": "Repsol built a centralized system using MongoDB Atlas, MongoDB Time Series, and Apache Kafka to ensure cost-effective global scalability, efficient data compression, and high availability.",
+    "outcomes": [
+      {
+        "claim": "Centralized data simplifies access and consumption for analysts.",
+        "quote": "By centralizing all that data, MongoDB Atlas is making consumption and analysis easy and effective."
+      },
+      {
+        "claim": "Maintains stable storage volume and faster queries over time.",
+        "quote": "Two years of aggregated data in one collection only uses around 160GB."
+      }
+    ],
+    "summary": "Repsol Group leveraged MongoDB Atlas and Time Series collections to centralize operational data from global renewable energy plants. The modernized architecture eliminated infrastructure maintenance burdens, reduced storage costs through efficient compression and archiving, and enabled self-service analytics for business users.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/repsol",
+    "fetched_at": "2026-11-19T23:42:35.329066+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Energy & Utilities"
+  },
+  {
+    "company": "TotalEnergies",
+    "hq_country": "France",
+    "industry": "Energy",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Gen AI",
+    "challenge": "TotalEnergies had to standardize information systems across acquired companies, handle millions of cybersecurity attacks, and rapidly adapt IT coverage to many smaller, newly acquired wind and solar power sites.",
+    "solution": "The company stored all previously distributed data in a MongoDB environment for complete processing, enabling a multi-cloud architecture and supporting unstructured data alongside cloud data lakes.",
+    "outcomes": [
+      {
+        "claim": "Quickly integrated numerous distributed sites",
+        "quote": "This gives us much greater agility and helps us integrate the sites quickly"
+      }
+    ],
+    "summary": "TotalEnergies standardized its information systems and integrated numerous new energy sites by placing MongoDB at the heart of its IT and cloud architecture. By leveraging MongoDB and cloud solutions, the global energy company eliminated data silos, improved cross-functional access, and accelerated its journey toward carbon neutrality.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/total-energies",
+    "fetched_at": "2026-11-19T23:42:46.232357+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Energy & Utilities"
+  },
+  {
+    "company": "Enpal",
+    "hq_country": "Germany",
+    "industry": "Energy",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Time Series Collections"
+    ],
+    "use_case": "IoT",
+    "challenge": "Enpal needed to evolve its initial data plumbing and architecture to manage real-time data from tens of thousands of solar, battery, and EV systems while overcoming the connection limits of blob storage.",
+    "solution": "The company built a hot storage layer using MongoDB Atlas and Time Series Collections to process over 200 real-time data streams from green energy devices.",
+    "outcomes": [
+      {
+        "claim": "60% drop in data processing costs",
+        "quote": "Once complete, the shift to time series collections is set to reduce data processing costs by almost 60%."
+      }
+    ],
+    "summary": "Enpal uses MongoDB Atlas and Time Series Collections to power a virtual energy grid, managing real-time data streams from thousands of green energy devices. The platform delivers cost-efficient, scalable data handling to support the company's rapid European expansion.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/enpal",
+    "fetched_at": "2026-11-19T23:43:06.578476+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Energy & Utilities"
+  },
+  {
+    "company": "Swisscom",
+    "hq_country": "Switzerland",
+    "industry": "Information and Communication Technology",
+    "mongodb_products": [
+      "MongoDB Vector Search",
+      "MongoDB Atlas"
+    ],
+    "use_case": "GenAI",
+    "challenge": "Swisscom needed to streamline access to e.foresight’s vast content library using generative AI, delivering faster, more accurate, and relevant search results.",
+    "solution": "Swisscom leveraged MongoDB Atlas and Vector Search to power a retrieval-augmented generation (RAG) application for e.foresight, enhancing AI-driven search and content summarization.",
+    "outcomes": [
+      {
+        "claim": "Development time for the first solution was six days",
+        "quote": "Total development effort for the first solution was around six days."
+      },
+      {
+        "claim": "AI-generated responses have transformed the speed and accuracy of search requests",
+        "quote": "By doing so, it is transforming the speed, accuracy, and relevancy of search requests."
+      },
+      {
+        "claim": "Improved content accessibility and summaries for banking users",
+        "quote": "Rather than pointing users to a 4,000-word article, the application can use gen AI to efficiently extract and accurately summarize specific content from multiple sources."
+      }
+    ],
+    "summary": "Swisscom used MongoDB Atlas and Vector Search to build a generative AI application for its banking think tank, e.foresight, within twelve weeks. The RAG application successfully transformed search speed and accuracy for banking users by securely querying an extensive document library. This project demonstrates Swisscom's ability to rapidly deliver innovative, trusted AI solutions tailored to the financial sector.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/swisscom",
+    "fetched_at": "2026-11-19T23:43:33.933603+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Telecommunications"
+  },
+  {
+    "company": "Poste Italiane",
+    "hq_country": "Italy",
+    "industry": "Public Sector",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Migrations",
+    "challenge": "Poste Italiane needed to reduce heavy data workloads and workloads on its mainframes, particularly for very large volumes of read requests, while establishing a more agile and scalable infrastructure to support new digital workflows.",
+    "solution": "They used MongoDB Atlas as a fast layer to handle read-heavy workloads, de-normalize data from mainframes into a single flexible schema, and transform heterogeneous data sources into coherent aggregates.",
+    "outcomes": [
+      {
+        "claim": "Handled high read volumes efficiently",
+        "quote": "By the end of 2022, the solution was managing more than 7,000 readings per second on an on-premises infrastructure of 30 nodes."
+      }
+    ],
+    "summary": "Poste Italiane leveraged MongoDB Atlas to modernize its infrastructure and offload 80% of read requests from traditional mainframes. The document database enabled the company to improve digital services, enhance customer experience, and ensure greater continuity across its core financial and postal operations.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/poste-italiane",
+    "fetched_at": "2026-11-19T23:43:44.583110+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Public Sector"
+  },
+  {
+    "company": "Department for Work and Pensions",
+    "hq_country": "United Kingdom",
+    "industry": "Government / Public Sector",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Business Agility",
+    "challenge": "As the COVID-19 pandemic hit and triggered a national lockdown, the Universal Credit platform experienced an enormous increase in traffic at more than 10 times the usual volume overnight. The concern was that the system might fail, leaving millions unable to work or unemployed without timely financial support.",
+    "solution": "The platform expanded to eight MongoDB production clusters distributed across AWS availability zones to scale the programme and handle the massive surge in claims. This distributed architecture allowed the team to scale up individual nodes in a rolling fashion and carry out 76 urgent application changes during the first two months of the pandemic without downtime.",
+    "outcomes": [
+      {
+        "claim": "Handled massive daily claim volumes at the peak of the pandemic",
+        "quote": "At the peak, we managed to handle 100k new claims and over 2.2 million claim enquiries in a single day and keep our on-time payment rates over 88%, which is pretty phenomenal"
+      },
+      {
+        "claim": "Scaled capacity to 110TB of uncompressed claim data",
+        "quote": "During those frantic weeks, the busiest clusters handled more than 15,000 requests per second while the overall system grew to 110TB of uncompressed claim-related data, 5TB of indices, and 6TB of memory."
+      }
+    ],
+    "summary": "The UK Department for Work and Pensions used MongoDB to scale its Universal Credit platform 10x overnight to handle unprecedented traffic surges during the COVID-19 pandemic. By leveraging MongoDB's flexible document model and distributed architecture, the team maintained high availability, processed up to 100,000 claims in a single day without downtime, and is now migrating to MongoDB Atlas to further reduce operational friction.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/department-for-work-and-pensions",
+    "fetched_at": "2026-11-19T23:43:58.532237+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Public Sector"
+  },
+  {
+    "company": "Deutsche Telekom",
+    "hq_country": "Germany",
+    "industry": "Telecommunications",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Customer 360",
+    "challenge": "DT needed an efficient, developer-friendly database to speed deployments, reduce time to market, and support a resilient, scalable B2C digital platform for DT’s 30M customers across Germany.",
+    "solution": "DT adopted MongoDB Atlas—spinning up clusters in 10 minutes, enabling developers to start using them within 20 minutes—seamlessly integrating into its ecosystem to build a scalable, agile B2C platform.",
+    "outcomes": [
+      {
+        "claim": "Handles over 1.5 million daily interactions",
+        "quote": "Daily interactions on its digital platforms have surged from under 50,000 three years ago to approximately 1.5 million today."
+      },
+      {
+        "claim": "Manages more than 60 million records",
+        "quote": "Currently, Deutsche Telekom operates 90 MongoDB Atlas clusters, managing over 60 million customer records and ensuring that customer data is efficiently stored and accessible."
+      },
+      {
+        "claim": "Fast provisioning and reduced time to market",
+        "quote": "Within 10 minutes we can spin up a cluster and within 20 minutes a developer can use it."
+      }
+    ],
+    "summary": "Deutsche Telekom modernized its B2C digital channels in Germany by adopting MongoDB Atlas to support 30 million customers. Using MongoDB as part of its Internal Developer Platform, the company reduced time to market, scaled to manage over 60 million records, and handled 1.5 million daily interactions while retiring legacy systems.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/dt",
+    "fetched_at": "2026-11-20T01:07:33.363188+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Telecommunications"
+  },
+  {
+    "company": "STACKIT",
+    "hq_country": "Germany",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB",
+      "MongoDB Flex",
+      "MongoDB Atlas"
+    ],
+    "use_case": "Content Management",
+    "challenge": "Schwarz Group needed a scalable, EU compliant database to support its new STACKIT cloud that offered data sovereignty and autonomy. The database needed to handle voluminous and complex data structures.",
+    "solution": "STACKIT implemented MongoDB to deliver flexible, high-performance, document-based storage offering sharding and EU-residency guarantees within minutes.",
+    "outcomes": [
+      {
+        "claim": "Complete data sovereignty and control",
+        "quote": "We benefit from the performance and scalability of the cloud while also managing our costs, and most importantly we always have complete control of our data."
+      },
+      {
+        "claim": "Faster deployments and straightforward ops",
+        "quote": "Our developers love MongoDB because they never have any trouble with it."
+      },
+      {
+        "claim": "Developer productivity and flexibility",
+        "quote": "Everything is flexible inside of MongoDB."
+      }
+    ],
+    "summary": "STACKIT, a cloud platform built by Schwarz Group, uses MongoDB to deliver secure, EU-compliant cloud services with data sovereignty and autonomy. By utilizing MongoDB's document-based storage and scalability, STACKIT successfully supports complex workloads such as Lidl's automated food ordering system. The platform has grown rapidly, providing high-performing and cost-efficient cloud alternatives to external enterprises.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/stackit",
+    "fetched_at": "2026-11-20T01:07:45.507805+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "Novo Nordisk",
+    "hq_country": "Denmark",
+    "industry": "Pharmaceutical Product",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "Atlas Vector Search"
+    ],
+    "use_case": "Gen AI",
+    "challenge": "Creating Clinical Study Reports (CSRs) took 12 weeks, requiring significant manual effort from statisticians, scientists, and technical authors, slowing time-to-market for new pharmaceutical products.",
+    "solution": "Novo Nordisk built NovoScribe, an AI-powered platform using MongoDB Atlas Vector Search, Amazon Bedrock, and LangChain to automate and accelerate CSR creation.",
+    "outcomes": [
+      {
+        "claim": "CSR creation reduced from 12 weeks to 10 minutes",
+        "quote": "CSR creation reduced from 12 weeks to 10 minutes"
+      },
+      {
+        "claim": "Increased efficiency with fewer resources",
+        "quote": "Increased efficiency with fewer resources"
+      },
+      {
+        "claim": "Faster time-to-market for new treatments",
+        "quote": "Faster time-to-market for new treatments"
+      }
+    ],
+    "summary": "Novo Nordisk accelerated the creation of Clinical Study Reports (CSRs) from 12 weeks down to just 10 minutes by developing NovoScribe, an AI-powered platform leveraging MongoDB Atlas Vector Search, Amazon Bedrock, and LangChain. This innovative document-based approach significantly reduced manual effort, enhanced regulatory compliance, and accelerated time-to-market for vital new pharmaceutical treatments.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/novo-nordisk",
+    "fetched_at": "2026-11-19T23:44:09.227735+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Healthcare & Life Sciences"
+  },
+  {
+    "company": "TeamSystem",
+    "hq_country": "Italy",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Gen AI",
+    "challenge": "TeamSystem faced silos of data and fragmented workflows that made embedding AI individually in every product unsustainable. They needed a robust multi-tenant system ensuring strict data isolation and security for sensitive customer data.",
+    "solution": "TeamSystem combined full-text, metadata and vector search using MongoDB Atlas for precise, secure AI-powered queries. They implemented a retrieval-augmented generation (RAG) solution to handle document ingestion and semantic search.",
+    "outcomes": [
+      {
+        "claim": "Cuts task completion times by up to 40%",
+        "quote": "For more complex AI-powered process automation, TeamSystem has measured impressive 30-40% reductions in task completion times, providing clear KPIs to guide ongoing platform improvements."
+      },
+      {
+        "claim": "Scaled from 50,000 to half a million users",
+        "quote": "By leveraging MongoDB Atlas’s automatic horizontal scaling, TeamSystem has taken the platform from an initial pilot of 50,000 users to half a million, without compromising search performance or latency."
+      }
+    ],
+    "summary": "TeamSystem partnered with MongoDB Atlas to unify fragmented data and embed AI at scale across their digital management solutions. By leveraging MongoDB's hybrid search and multi-tenant capabilities, they built a secure, high-performance AI platform that cuts task times by up to 40% while simplifying data management.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/teamsystem",
+    "fetched_at": "2026-11-19T23:44:20.196960+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "DATEV",
+    "hq_country": "Germany",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB AMP"
+    ],
+    "use_case": "Migrations Modernization",
+    "challenge": "DATEV needed to migrate over 250 legacy applications to a cloud-native architecture to deliver AI value and bypass DVD release cycles. Distributed data and severe latency issues also restricted speed while customers increasingly expected fast solutions.",
+    "solution": "DATEV used MongoDB's AMP to support the development of a repeatable Modernization Factory that combines AI-driven code migration with developer enablement.",
+    "outcomes": [
+      {
+        "claim": "Modernization timelines fell significantly",
+        "quote": "Where in the past we would have estimated nine to twelve months to carry out such modernizations, together with AMP and MongoDB we were able to implement it in a much, much shorter time—two to three months—to provide a new technology."
+      },
+      {
+        "claim": "Initial experiment proved the value of AI-driven modernization",
+        "quote": "At the beginning, nobody could really imagine the acceleration effects involved. It was more of an experiment, but it quickly became clear that it works and is worth investing in."
+      }
+    ],
+    "summary": "DATEV partnered with MongoDB to accelerate the modernization of its legacy application portfolio using MongoDB AMP. By building a repeatable Modernization Factory that combines AI-driven code migration with developer upskilling, DATEV successfully slashed modernization timelines from up to a year down to just a few months. This transformation enables the cooperative to move away from legacy physical DVD cycles and embrace continuous cloud deployments.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/datev",
+    "fetched_at": "2026-11-19T23:44:31.180660+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "Nexthink",
+    "hq_country": "Switzerland",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "Atlas Vector Search"
+    ],
+    "use_case": "Migrations",
+    "challenge": "Nexthink faced stability and latency issues due to a complex, self-managed legacy stack that resulted in a poor user experience and occasional outages. The previous setup often exceeded 100 milliseconds in response times and put a heavy operational burden on internal teams.",
+    "solution": "Nexthink migrated to MongoDB Atlas to consolidate data, eliminate manual maintenance, integrate with AWS via Terraform, and automate global data residency across 14 production regions.",
+    "outcomes": [
+      {
+        "claim": "Latency dropped significantly to under 2ms",
+        "quote": "Performance has improved drastically, with latency for data retrieval dropping by 98% from over 100 milliseconds with its legacy tech stack to below 2 milliseconds with MongoDB Atlas."
+      },
+      {
+        "claim": "Eliminated outages and operational burdens",
+        "quote": "More importantly, MongoDB Atlas’s managed service has eliminated outages and reduced significant strain on Nexthink’s internal teams, who can now focus on delivering outstanding products and experiences."
+      },
+      {
+        "claim": "Response times are several orders of magnitude faster",
+        "quote": "Response times are several orders of magnitude faster with MongoDB Atlas."
+      },
+      {
+        "claim": "Enabled the team to develop AI features",
+        "quote": "Nexthink cut latency to under 2ms, eliminated outages, and enabled its team to develop AI features using MongoDB Atlas Vector Search."
+      }
+    ],
+    "summary": "Nexthink migrated their digital adoption platform, Adopt, from a complex legacy stack to MongoDB Atlas to resolve high latency and stability issues. By moving to MongoDB Atlas, they reduced latency by 98% to under 2ms, eliminated outages, and gained the flexibility to support advanced AI features with Vector Search.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/nexthink",
+    "fetched_at": "2026-11-19T23:44:42.851943+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "Cognigy",
+    "hq_country": "Germany",
+    "industry": "Corporate Services",
+    "mongodb_products": [
+      "MongoDB GridFS"
+    ],
+    "use_case": "AI Machine Learning",
+    "challenge": "Developing a conversational AI system poses challenges due to the need to interact with diverse systems like CRMs, ERPs, and ticketing systems across multiple communication channels. In addition, scaling the platform to accommodate a growing user base while maintaining minimal latency is a substantial undertaking.",
+    "solution": "Cognigy built a composable architecture using over 30 specialized microservices orchestrated through Kubernetes and fortified with MongoDB's replica-sets spanning three availability zones. They integrated sophisticated indexing, caching, and GridFS for file management to enhance query performance and store custom-trained intent models.",
+    "outcomes": [
+      {
+        "claim": "Handles hundreds of queries per second under peak load",
+        "quote": "With a MongoDB production replica-set, Cognigy is able to handle hundreds of queries per second, totaling around 1000 database operations per second during peak-load scenarios."
+      }
+    ],
+    "summary": "Cognigy leverages MongoDB to power its conversational AI platform, Cognigy.AI, ensuring high scalability and minimal latency. By utilizing MongoDB's document model, flexible schema, and GridFS for file management, Cognigy seamlessly handles hundreds of queries per second while managing over 1 TB of data. This robust foundation allows businesses to easily deploy and scale intelligent voice and chatbots.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/cognigy",
+    "fetched_at": "2026-11-19T23:45:09.530725+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "Vainu",
+    "hq_country": "Finland",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Migrations",
+    "challenge": "Vainu's rigid SQL schemas and self-managed infrastructure caused frequent downtime, operational inefficiencies, and high maintenance demands that hindered developer productivity.",
+    "solution": "The company migrated to fully managed MongoDB Atlas on AWS to automate backups, enhance scalability, and reduce infrastructure management.",
+    "outcomes": [
+      {
+        "claim": "Infrastructure costs reduced",
+        "quote": "Our infrastructure costs for our cluster fell from €17,000 per month to €3,000 per month because we moved from an underutilized, outdated, unmanageable, and unscalable cluster to MongoDB Atlas on AWS"
+      },
+      {
+        "claim": "Improved cost visibility and reliability",
+        "quote": "One of the biggest benefits of using MongoDB Atlas on AWS is the reliability and the cost visibility."
+      }
+    ],
+    "summary": "Vainu cut its monthly infrastructure costs from €17,000 to €3,000 by migrating from a self-managed cluster to MongoDB Atlas on AWS. The fully managed platform automated backups, improved uptime, and freed developers from infrastructure management to focus on application innovation.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/vainu",
+    "fetched_at": "2026-11-19T23:45:20.954688+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "ElevenLabs",
+    "hq_country": "United Kingdom",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB",
+      "MongoDB Atlas"
+    ],
+    "use_case": "GenAI",
+    "challenge": "ElevenLabs' legacy database lacked native free-text search, forcing the engineering team to build makeshift architectures with secondary index stores and custom synchronization code. This added infrastructure complexity and drained valuable engineering time.",
+    "solution": "ElevenLabs moved to MongoDB on Google Cloud, eliminating separate index stores and sync code to bring simplicity to its data tier. The flexible document model natively handled diverse text assets and built-in querying capabilities solved previous search limitations out of the box.",
+    "outcomes": [
+      {
+        "claim": "Scaled to $600M ARR and powered millions of agents",
+        "quote": "A stable data layer unlocked hyper-growth for ElevenLabs, driving it to $600M ARR and powering millions of global voice and chat agents."
+      },
+      {
+        "claim": "Engineering team no longer needs to worry about infrastructure",
+        "quote": "For any infrastructure the best outcome is that the engineering team doesn't have to worry about it because it just runs."
+      }
+    ],
+    "summary": "ElevenLabs eliminated data layer complexity and scaled to $600M ARR by migrating to MongoDB on Google Cloud. By replacing legacy makeshift database architectures with MongoDB's flexible document model, the engineering team eliminated custom synchronization code and focused entirely on accelerating AI voice innovation.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/elevenlabs",
+    "fetched_at": "2026-11-20T01:07:58.952741+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Technology & Software"
+  },
+  {
+    "company": "TUI Musement",
+    "hq_country": "Germany",
+    "industry": "Leisure Sports and Recreation",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "Atlas Search"
+    ],
+    "use_case": "Modernization Gen AI Personalization",
+    "challenge": "TUI Musement was looking for interactive platforms to meet rapidly changing customer expectations while moving away from rigid and costly SQL database environments and previous inefficiencies.",
+    "solution": "TUI Musement modernized its infrastructure by adopting MongoDB Atlas on AWS, utilizing its document-based model, built-in search capabilities, and vector search tools to support LLMs and real-time personalized travel recommendations.",
+    "outcomes": [
+      {
+        "claim": "Cut planning experiences from 72 hours to a few minutes",
+        "quote": "MongoDB Atlas has played a key role in TUI Musement’s ability to cut planning experiences from 72 hours to just a few minutes."
+      },
+      {
+        "claim": "Provided millisecond-level speed and reliability in search performance",
+        "quote": "It has also enhanced its search performance, providing customers with millisecond-level speed and reliability in searching for and booking experiences and transfers."
+      },
+      {
+        "claim": "Reduced cognitive load on data teams and developers",
+        "quote": "Features like MongoDB Atlas Search are ready to go, and the cognitive load on both our data teams and developers is much, much lower."
+      }
+    ],
+    "summary": "TUI Musement migrated from rigid SQL databases to MongoDB Atlas on AWS to modernize its infrastructure, improve operational excellence, and power AI-driven personalization. The platform has enabled the company to slash planning times from 72 hours to minutes, enhance search performance, and seamlessly integrate advanced AI tools for millions of global customers.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/tui",
+    "fetched_at": "2026-11-19T23:45:33.215586+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Transport, Logistics & Travel"
+  },
+  {
+    "company": "SNCF Connect",
+    "hq_country": "France",
+    "industry": "Transportation & Logistics",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Content Management",
+    "challenge": "As SNCF Connect grew in popularity, the company’s database admins began to struggle with maintenance and scalability challenges, while the original database design was unsuitable for integrating new business functions.",
+    "solution": "SNCF Connect & Tech migrated from an Oracle database to MongoDB Atlas, implementing an asynchronous data transfer and a rigorous systematic index management strategy.",
+    "outcomes": [
+      {
+        "claim": "Spring ticket sales achieved a 29% increase in one day compared to 2022.",
+        "quote": "Spring ticket sales, which start at the end of January, are another busy period – 1.3 million tickets were sold in just one day, a 29% increase compared to 2022."
+      },
+      {
+        "claim": "MongoDB write operations had no impact on business API latency.",
+        "quote": "For example, MongoDB write operations had no impact in terms of business API latency."
+      }
+    ],
+    "summary": "SNCF Connect successfully migrated its high-volume ticketing app from a legacy Oracle database to MongoDB Atlas to handle surging seasonal traffic and complex data demands. Using MongoDB Atlas, the company achieved seamless scalability and minimal disruption for millions of passengers while maintaining high performance.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/sncfconnect",
+    "fetched_at": "2026-11-19T23:45:48.120420+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Transport, Logistics & Travel"
+  },
+  {
+    "company": "Amadeus",
+    "hq_country": "Spain",
+    "industry": "Transportation & Logistics",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Atlas Search",
+      "MongoDB Atlas Vector Search"
+    ],
+    "use_case": "Gen-AI Analytics",
+    "challenge": "Amadeus needed a faster, more intelligent way to investigate recurring IT issues across vast volumes of system logs from millions of daily transactions. Investigating technical issues can be time-consuming and disruptive for developers, taking them away from building new features.",
+    "solution": "Using MongoDB Atlas Search, Vector Search, and OpenAI, Amadeus built a smart incident investigation tool that matches issues to historical context across unstructured data.",
+    "outcomes": [
+      {
+        "claim": "Faster incident detection and resolution",
+        "quote": "Thanks to the MongoDB environment, Amadeus maintenance teams can resolve issues in minutes, helping propel the company forward and maintain its leading position in the competitive travel sector."
+      }
+    ],
+    "summary": "Amadeus improved its incident investigation process by leveraging MongoDB Atlas, Atlas Search, Atlas Vector Search, and OpenAI. By building an intelligent internal tool, the company can automatically correlate system logs and bug tickets to resolve IT issues in minutes.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/amadeus",
+    "fetched_at": "2026-11-19T23:45:59.093417+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Transport, Logistics & Travel"
+  },
+  {
+    "company": "Financial Times",
+    "hq_country": "United Kingdom",
+    "industry": "Media and Entertainment",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Atlas Vector Search",
+      "Atlas Search"
+    ],
+    "use_case": "Gen AI Personalization",
+    "challenge": "FT needed to deliver scalable, hybrid search that blends full-text precision and AI driven semantic discovery across more than a million daily search queries, maintaining performance and relevance at scale.",
+    "solution": "Using MongoDB Atlas with Atlas Search and Atlas Vector Search, FT built an AI-powered hybrid search platform in just 18 weeks, combining keyword and semantic search for better content discovery.",
+    "outcomes": [
+      {
+        "claim": "Launched in 18 weeks",
+        "quote": "The initial deployment milestone, releasing hybrid search for web users on FT.com, was completed in approximately 18 weeks, going live at the end of September 2024."
+      },
+      {
+        "claim": "Supports over a million searches per day",
+        "quote": "FT needed to deliver scalable, hybrid search that blends full-text precision and AI driven semantic discovery across more than a million daily search queries, maintaining performance and relevance at scale."
+      }
+    ],
+    "summary": "The Financial Times partnered with MongoDB to build an AI-powered hybrid search platform combining full-text precision with vector search. Utilizing MongoDB Atlas and professional services, the FT launched the solution in just 18 weeks to improve reader engagement and content discovery.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/ft",
+    "fetched_at": "2026-11-19T23:46:28.066670+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Media, Gaming & Entertainment"
+  },
+  {
+    "company": "Swiss Post",
+    "hq_country": "Switzerland",
+    "industry": "Transportation & Logistics",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Catalog Single View",
+    "challenge": "Swiss Post's decentralized infrastructure relied on a relational SQL server that was unsustainable, incurring high costs, manual overwork, and error-proneness. This limited the team to just four software releases a year due to excessive manual testing.",
+    "solution": "Swiss Post adopted MongoDB Atlas to modernize its logistics software, storing all parcel-related data in single documents with flexible schema collections for fast lookups, automated data management, and seamless parcel sorting.",
+    "outcomes": [
+      {
+        "claim": "6 software releases per day",
+        "quote": "6 software releases per day (vs. 4 per year)"
+      },
+      {
+        "claim": "67% improvement in database responsiveness",
+        "quote": "67% improvement in database responsiveness"
+      },
+      {
+        "claim": "300x more deployments per year",
+        "quote": "300x more deployments per year"
+      }
+    ],
+    "summary": "Swiss Post modernized its parcel sorting infrastructure using MongoDB Atlas to handle up to a million parcels daily across 13 sorting centers. By shifting from a rigid SQL server to MongoDB's flexible document model, Swiss Post increased deployments by 300x, improved database responsiveness by 67%, and accelerated release cycles from four times a year to six times a day.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/swiss-post",
+    "fetched_at": "2026-11-20T01:08:14.312520+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Transport, Logistics & Travel"
+  },
+  {
+    "company": "Bolloré Transport & Logistics",
+    "hq_country": "France",
+    "industry": "Transportation & Logistics",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Transport & Logistics",
+    "challenge": "Although the company's activities require the exchange of information worldwide, everything was still in the form of silos until the late 2000s, and subsidiaries and departments communicated in their own technical format. Additionally, software packages were unable to handle special freight cases and specific regulatory requirements.",
+    "solution": "Bolloré Transport & Logistics created a new virtualization microservices architecture known as the Enterprise-Microservices, using MongoDB to act as a single source of truth and eliminate single points of failure.",
+    "outcomes": [
+      {
+        "claim": "Removes single points of failure for data access",
+        "quote": "For databases, MongoDB has the huge advantage of removing “single points of failure” for accessing data that would have been produced by a service."
+      }
+    ],
+    "summary": "Bolloré Transport & Logistics modernized its infrastructure by replacing information silos with an Enterprise-Microservices architecture powered by MongoDB Atlas. This setup acts as a single source of truth for global shipping data while supporting advanced scalability, sharding, and future Lakehouse initiatives.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/bollere-logistics",
+    "fetched_at": "2026-11-20T01:08:28.927638+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Transport, Logistics & Travel"
+  },
+  {
+    "company": "FAIRTIQ",
+    "hq_country": "Switzerland",
+    "industry": "Transportation & Logistics",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Logistics Optimization",
+    "challenge": "PostgreSQL’s rigid schema, complex database migrations with downtime, and reliance on object-relational mapping soon proved cumbersome for FAIRTIQ’s needs.",
+    "solution": "Built on MongoDB Atlas, FAIRTIQ leverages a cloud-native, microservices-ready platform offering flexible performance, high uptime, and rapid deployment.",
+    "outcomes": [
+      {
+        "claim": "Handles 320k+ daily transactions with 99.99% uptime",
+        "quote": "320k+ daily transactions with 99.99% uptime"
+      },
+      {
+        "claim": "Enables accurate auto ticketing from GPS data",
+        "quote": "Accurate auto ticketing from GPS data"
+      },
+      {
+        "claim": "Provides architecture flexible enough to expand into multiple countries",
+        "quote": "Architecture flexible enough to expand into 6 countries"
+      }
+    ],
+    "summary": "FAIRTIQ successfully scaled its public transport ticketing app across multiple European countries using MongoDB Atlas. By leveraging MongoDB's schema flexibility and microservices support, the company eliminated traditional database migrations and maintained high availability.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/fairtiq",
+    "fetched_at": "2026-11-20T01:08:43.778683+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Transport, Logistics & Travel"
+  },
+  {
+    "company": "Betclic",
+    "hq_country": "France",
+    "industry": "Leisure Sports and Recreation",
+    "mongodb_products": [
+      "MongoDB Atlas",
+      "MongoDB Search on Atlas",
+      "MongoDB Atlas Local"
+    ],
+    "use_case": "Modernization",
+    "challenge": "Betclic's legacy SQL system caused 10s of data delays and operational silos, frustrating users and hindering the agility it needed to scale.",
+    "solution": "Betclic used MongoDB Atlas and MongoDB Search on Atlas to replace silos with a scalable, domain-driven design, accelerating time to market for new features.",
+    "outcomes": [
+      {
+        "claim": "No major database incidents",
+        "quote": "With MongoDB Atlas there have been no major incidents on the database side."
+      }
+    ],
+    "summary": "Betclic modernized its real-time sports betting platform by replacing a legacy SQL monolith with MongoDB Atlas and MongoDB Search on Atlas. This architectural shift eliminated operational silos, reduced end-to-end latency to 400ms, and enabled infinite scalability to support traffic peaks of nearly 100,000 reads per second without major incidents.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/betclic",
+    "fetched_at": "2026-11-20T01:08:56.877813+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Media, Gaming & Entertainment"
+  },
+  {
+    "company": "Bede Gaming",
+    "hq_country": "United Kingdom",
+    "industry": "Computer Software & Technology",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Content Management Personalization",
+    "challenge": "Bede Gaming's legacy database was costly, cloud-locked, and inflexible—limiting performance, portability, and scalability in a fast-paced, high-volume gaming environment.",
+    "solution": "Migrating to MongoDB Atlas enabled cloud-agnostic deployment, enhanced portability, and cost-effective scalability with zero performance loss across high-volume workloads.",
+    "outcomes": [
+      {
+        "claim": "50% reduction in storage costs",
+        "quote": "With fully managed MongoDB Atlas we’ve seen 50% savings"
+      },
+      {
+        "claim": "1M+ records migrated per minute",
+        "quote": "The migration involved moving over a million customer records per minute from Cosmos DB to MongoDB Atlas."
+      },
+      {
+        "claim": "Future storage cost savings of up to 75%",
+        "quote": "He has modelled cost savings of 65 to 75% after optimizing some of the underlying discs being used in Azure and right-sizing instances further."
+      }
+    ],
+    "summary": "Bede Gaming migrated from Azure Cosmos DB to MongoDB Atlas to escape a costly, cloud-locked legacy setup. The transition delivered a 50% reduction in storage costs while enabling cloud-agnostic portability and high-performance scalability. Bede Gaming plans to leverage further optimizations for up to 75% in future savings and explore advanced data strategies.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/bede",
+    "fetched_at": "2026-11-20T01:09:11.249418+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Media, Gaming & Entertainment"
+  },
+  {
+    "company": "Futureplay Games",
+    "hq_country": "Finland",
+    "industry": "Gaming",
+    "mongodb_products": [
+      "MongoDB Atlas"
+    ],
+    "use_case": "Database migration",
+    "challenge": "As installations of Merge Gardens rocketed to around 10 million players following a major rebrand, Futureplay lacked its own server backend and hit limits with the third-party SaaS solution they used to store player state and configure campaigns. They needed to bring core technology in-house to run tests, update quickly, and iterate faster in a competitive market.",
+    "solution": "Futureplay migrated from their third-party solution by building an in-house server utilizing two databases in MongoDB Atlas on Google Cloud for operations systems and player management.",
+    "outcomes": [
+      {
+        "claim": "Initial deployment went smoothly",
+        "quote": "We utilized private endpoints from the MongoDB side which let us consume data from MongoDB clusters within our own servers securely and privately"
+      }
+    ],
+    "summary": "Mobile games studio Futureplay Games migrated from a third-party SaaS backend to MongoDB Atlas on Google Cloud to support the rapid growth of their popular game, Merge Gardens. Using MongoDB's document model and managed services, the small development team successfully brought their server and player data in-house for better control, scalability, and rapid feature iteration.",
+    "region": "EMEA",
+    "source_url": "https://www.mongodb.com/solutions/customer-case-studies/futureplay-games",
+    "fetched_at": "2026-11-20T01:09:28.559998+00:00",
+    "schema_version": 1,
+    "embedding_model": "gemini-embedding-001",
+    "industry_group": "Media, Gaming & Entertainment"
+  }
+]
