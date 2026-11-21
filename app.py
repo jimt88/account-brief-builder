@@ -45,8 +45,6 @@ CSS = """
 <style>
 .abb-hero {background: linear-gradient(135deg, #001E2B 0%, #023430 100%); border-radius: 16px;
            padding: 20px 24px; display: flex; gap: 16px; align-items: center; margin-bottom: 4px;}
-.abb-leaf {flex: none; width: 22px; height: 44px; background: #00ED64;
-            border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; box-shadow: inset -5px 0 0 #00C557;}
 .abb-title {color: #FFFFFF; font-size: clamp(1.4rem, 4.5vw, 2rem); font-weight: 600; line-height: 1.2;}
 .abb-title span {color: #00ED64;}
 .abb-sub {color: #C1CCC6; font-size: 0.95rem; margin-top: 4px;}
@@ -127,7 +125,6 @@ def hero() -> None:
     """The dark MongoDB-green banner at the top of every page."""
     st.html(CSS + """
 <div class="abb-hero">
-  <div class="abb-leaf"></div>
   <div>
     <div class="abb-title">Account Brief <span>Builder</span></div>
     <div class="abb-sub">Evidence-backed account briefs for MongoDB ADRs, powered by Atlas Vector Search</div>
