@@ -17,6 +17,7 @@ MONGODB_URI, GEMINI_API_KEY and APP_PASSCODE.
 """
 
 import hmac
+import html
 import os
 
 import pandas as pd
@@ -35,6 +36,28 @@ from brief.story_search import DB_NAME
 st.set_page_config(page_title="Account Brief Builder", page_icon="🍃", layout="centered")
 
 PAGES = ["New account", "Pipeline", "Brief", "How it works"]
+PAGE_ICONS = {"New account": ":material/add_circle:", "Pipeline": ":material/leaderboard:",
+              "Brief": ":material/description:", "How it works": ":material/info:"}
+
+# Small extra styling on top of the theme in .streamlit/config.toml. It only targets
+# our own "abb-" classes, so Streamlit upgrades can't break it.
+CSS = """
+<style>
+.abb-hero {background: linear-gradient(135deg, #001E2B 0%, #023430 100%); border-radius: 16px;
+           padding: 20px 24px; display: flex; gap: 16px; align-items: center; margin-bottom: 4px;}
+.abb-leaf {flex: none; width: 22px; height: 44px; background: #00ED64;
+            border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; box-shadow: inset -5px 0 0 #00C557;}
+.abb-title {color: #FFFFFF; font-size: clamp(1.4rem, 4.5vw, 2rem); font-weight: 600; line-height: 1.2;}
+.abb-title span {color: #00ED64;}
+.abb-sub {color: #C1CCC6; font-size: 0.95rem; margin-top: 4px;}
+.abb-callout {border-left: 4px solid #00ED64; background: #E3FCF7; border-radius: 10px;
+              padding: 12px 16px; color: #001E2B; margin-bottom: 12px;}
+.abb-callout .abb-label {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em;
+                         text-transform: uppercase; color: #00684A; margin-bottom: 4px;}
+.abb-callout .abb-text {font-size: 1.1rem; font-weight: 500;}
+.abb-quote {border-left: 3px solid #00ED64; padding-left: 12px; color: #3D4F58; font-style: italic;}
+</style>
+"""
 
 
 def get_setting(name: str) -> str | None:
@@ -57,8 +80,9 @@ def passcode_ok() -> bool:
     if st.session_state.get("unlocked"):
         return True
     with st.form("passcode"):
+        st.markdown("**:material/lock: This demo is passcode protected**")
         entered = st.text_input("Passcode", type="password")
-        submitted = st.form_submit_button("Unlock")
+        submitted = st.form_submit_button("Unlock", type="primary", width="stretch", icon=":material/lock_open:")
     # compare_digest avoids leaking how many characters were right.
     if submitted and hmac.compare_digest(entered.encode(), expected.encode()):
         st.session_state.unlocked = True
@@ -99,6 +123,34 @@ def label(signal_type: str) -> str:
     return SIGNAL_LABELS.get(SignalType(signal_type), signal_type)
 
 
+def hero() -> None:
+    """The dark MongoDB-green banner at the top of every page."""
+    st.html(CSS + """
+<div class="abb-hero">
+  <div class="abb-leaf"></div>
+  <div>
+    <div class="abb-title">Account Brief <span>Builder</span></div>
+    <div class="abb-sub">Evidence-backed account briefs for MongoDB ADRs, powered by Atlas Vector Search</div>
+  </div>
+</div>""")
+
+
+def callout(title: str, text: str) -> None:
+    """A highlighted box, used for the value hook."""
+    st.html(f'<div class="abb-callout"><div class="abb-label">{html.escape(title)}</div>'
+            f'<div class="abb-text">{html.escape(text)}</div></div>')
+
+
+def badge(text: str, colour: str, icon: str = "") -> str:
+    """Markdown for a small coloured label; several fit on one line."""
+    text = (text or "").replace("[", "(").replace("]", ")")
+    return f":{colour}-badge[{icon} {md(text)}]".replace("[ ", "[")
+
+
+def score_colour(score: int) -> str:
+    return "green" if score >= 50 else "orange" if score >= 25 else "gray"
+
+
 # ---- Brief (built from the saved account document) --------------------------
 
 def brief_as_markdown(a: dict) -> str:
@@ -123,81 +175,115 @@ def brief_as_markdown(a: dict) -> str:
 
 def show_brief(a: dict) -> None:
     b, s, p = a["brief"], a["matched_story"], a["profile"]
-    st.header(a["company"])
-    st.caption(f"{p['industry']} · {p['hq_country'] or 'HQ not stated'} · status: {a['status']} · "
-               f"updated {a['updated_at']:%d %b %Y %H:%M} UTC")
+    st.header(a["company"], anchor=False)
+    st.markdown(" ".join([badge(p["industry"], "green", ":material/domain:"),
+                          badge(p["hq_country"] or "HQ not stated", "gray", ":material/location_on:"),
+                          badge(a["status"], "blue", ":material/flag:")]))
     st.markdown(md(p["what_they_do"]))
+
+    col_score, col_story = st.columns(2)
+    with col_score.container(border=True):
+        st.metric("Account score", f"{a['score']}/100")
+        st.badge(f"{len(a['signals'])} verified signals", color=score_colour(a["score"]))
+    with col_story.container(border=True):
+        st.metric("Matched customer story", s["company"])
+        st.badge(f"similarity {s['score']:.2f}", color="green")
 
     if a.get("warnings"):
         st.warning("**Check before using:**\n" + "\n".join(f"- {md(w)}" for w in a["warnings"]))
     else:
-        st.success("Checks passed: lengths OK, every number is in the evidence, no vendor claims.")
+        st.success("Checks passed: lengths OK, every number is in the evidence, no vendor claims.",
+                   icon=":material/verified:")
 
-    st.subheader(f"Score: {a['score']}/100")
-    rows = [{"Reason": x["reason"], "Points": x["points"]} for x in a["score_breakdown"]]
-    if rows:
-        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-        st.caption(f"Total {sum(r['Points'] for r in rows)} (capped at 100).")
-    else:
-        st.write("No scoring signals found.")
+    outreach, evidence, story, details = st.tabs(
+        [":material/campaign: Outreach", ":material/fact_check: Evidence",
+         ":material/auto_stories: Story", ":material/history: Details"])
 
-    st.subheader("Why now")
-    st.markdown("\n".join(f"- {md(x)}" for x in b["why_now"]))
-    st.subheader("Who to contact (hypothesis)")
-    st.markdown("\n".join(f"- **{x['side']}:** {md(x['role'])} - {md(x['why'])}" for x in b["personas"]))
-    st.subheader("Value hook")
-    st.markdown(md(b["value_hook"]))
-    st.subheader("30-second cold-call opener")
-    st.markdown(md(b["cold_call_opener"]))
-    st.subheader("Email")
-    st.markdown(f"**Subject:** {md(b['email']['subject'])}")
-    st.markdown(md(b["email"]["body"]))
-    st.subheader("Discovery questions")
-    st.markdown("\n".join(f"{n}. {md(q)}" for n, q in enumerate(b["discovery_questions"], start=1)))
+    with outreach:
+        callout("Value hook", b["value_hook"])
+        st.subheader("Why now", anchor=False)
+        st.markdown("\n".join(f"- {md(x)}" for x in b["why_now"]))
+        st.subheader("Who to contact", anchor=False)
+        st.caption("Hypotheses to check before reaching out.")
+        for x in b["personas"]:
+            with st.container(border=True):
+                st.markdown(f"**{x['side']}:** {md(x['role'])}")
+                st.caption(x["why"])
+        st.subheader("30-second cold-call opener", anchor=False)
+        st.code(b["cold_call_opener"], language=None, wrap_lines=True)
+        st.subheader("Email", anchor=False)
+        st.code(f"Subject: {b['email']['subject']}\n\n{b['email']['body']}", language=None, wrap_lines=True)
+        st.caption("Use the copy icon on the top right of the opener or the email.")
+        st.subheader("Discovery questions", anchor=False)
+        st.markdown("\n".join(f"{n}. {md(q)}" for n, q in enumerate(b["discovery_questions"], start=1)))
 
-    st.subheader("Evidence (every quote is word for word from the page)")
-    for n, x in enumerate(a["signals"], start=1):
-        used = " · used in the brief" if n in b["signals_used"] else ""
+    with evidence:
+        st.subheader(f"Score: {a['score']}/100", anchor=False)
+        rows = [{"Reason": x["reason"], "Points": x["points"]} for x in a["score_breakdown"]]
+        if rows:
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+            st.caption(f"Total {sum(r['Points'] for r in rows)} (capped at 100).")
+        else:
+            st.write("No scoring signals found.")
+        st.subheader("Signals", anchor=False)
+        st.caption("Every quote is word for word from the linked page.")
+        for n, x in enumerate(a["signals"], start=1):
+            with st.container(border=True):
+                used = " " + badge("used in the brief", "green", ":material/check:") if n in b["signals_used"] else ""
+                st.markdown(f"**{n}. {label(x['type'])}**{used}")
+                st.html(f'<div class="abb-quote">"{html.escape(x["quote"])}"</div>')
+                st.markdown(f"[Source]({x['source_url']})")
+
+    with story:
         with st.container(border=True):
-            st.markdown(f"**{n}. {label(x['type'])}**{used}")
-            st.markdown(f"> {md(x['quote'])}")
-            st.markdown(f"[Source]({x['source_url']})")
+            st.subheader(s["company"], anchor=False)
+            how = f"Same industry: {s['industry_filter']}" if s.get("industry_filter") else "Closest in any industry"
+            st.markdown(badge(how, "green", ":material/filter_alt:") + " " + badge(f"similarity {s['score']:.2f}", "gray"))
+            st.markdown(md(s["summary"]))
+            st.markdown(f"**Why this story:** {md(s['why'])}")
+            st.link_button("Read the story on mongodb.com", s["url"], icon=":material/open_in_new:")
+        st.caption("Found with Atlas Vector Search over 48 public MongoDB customer stories.")
 
-    st.subheader("Matched MongoDB customer story")
-    with st.container(border=True):
-        how = f"same industry: {s['industry_filter']}" if s.get("industry_filter") else "closest in any industry"
-        st.markdown(f"**{s['company']}** · similarity {s['score']:.2f} · {how}")
-        st.markdown(md(s["summary"]))
-        st.markdown(f"*Why this story:* {md(s['why'])}")
-        st.markdown(f"[Read the story]({s['url']})")
-
-    with st.expander(f"Pages read ({len(a.get('pages_read', []))})"):
+    with details:
+        st.caption(f"Updated {a['updated_at']:%d %b %Y %H:%M} UTC")
+        st.markdown(f"**Pages read ({len(a.get('pages_read', []))})**")
         st.markdown("\n".join(f"- {u}" for u in a.get("pages_read", [])))
-    if a.get("history"):
-        with st.expander(f"Earlier versions ({len(a['history'])})"):
+        if a.get("history"):
+            st.markdown(f"**Earlier versions ({len(a['history'])})**")
             for h in reversed(a["history"]):
                 when = f"{h['updated_at']:%d %b %Y %H:%M}" if h.get("updated_at") else "earlier"
                 st.markdown(f"- {when}: score {h.get('score')} - {md((h.get('brief') or {}).get('value_hook', ''))}")
 
-    st.download_button("Download brief (Markdown)", brief_as_markdown(a),
-                       file_name=f"brief-{a['domain']}.md", mime="text/markdown")
+    st.download_button("Download brief (Markdown)", brief_as_markdown(a), icon=":material/download:",
+                       file_name=f"brief-{a['domain']}.md", mime="text/markdown", width="stretch")
 
 
 # ---- Pages ------------------------------------------------------------------
 
 def page_new_account() -> None:
-    st.write("Type a company and its website. Public pages only: no logins, LinkedIn or paywalls. "
-             "Takes about a minute.")
+    st.subheader("Research a new account", anchor=False)
+    st.caption("Public pages only: no logins, LinkedIn or paywalls. Takes about a minute.")
+    # A horizontal container keeps the three cards in one row on phones too.
+    steps = st.container(horizontal=True, wrap=False)
+    for icon, title, text in [
+        (":material/travel_explore:", "Read", "Up to 4 public pages"),
+        (":material/fact_check:", "Verify", "Signals with exact quotes"),
+        (":material/hub:", "Match", "Closest MongoDB story"),
+    ]:
+        with steps.container(border=True):
+            st.markdown(f"**{icon} {title}**")
+            st.caption(text)
     with st.form("company"):
-        company = st.text_input("Company name", placeholder="Ocado Group")
-        website = st.text_input("Website", placeholder="ocadogroup.com")
+        name_col, site_col = st.columns(2)
+        company = name_col.text_input("Company name", placeholder="Ocado Group")
+        website = site_col.text_input("Website", placeholder="ocadogroup.com")
         extra = st.text_area(
             "Extra links (optional, up to 3, one per line)",
             placeholder="https://www.ocadogroup.com/newsroom",
             help="Public pages worth reading too, e.g. a press release, careers page or news "
             "article. Useful when the main site is thin or needs JavaScript. No LinkedIn or paywalls.",
         )
-        go = st.form_submit_button("Build brief", type="primary", width="stretch")
+        go = st.form_submit_button("Build brief", type="primary", width="stretch", icon=":material/bolt:")
     if not go:
         return
     if not company.strip() or not website.strip():
@@ -216,7 +302,7 @@ def page_new_account() -> None:
             status.update(label="Something went wrong", state="error")
             st.error(friendly_error(exc))
             return
-    st.button("Open the brief", type="primary", width="stretch",
+    st.button("Open the brief", type="primary", width="stretch", icon=":material/description:",
               on_click=open_brief, args=(result.account["domain"],))
 
 
@@ -229,6 +315,10 @@ def page_pipeline() -> None:
     if not rows:
         st.info("No accounts yet. Build one on the New account page.")
         return
+    with st.container(horizontal=True, wrap=False):
+        st.metric("Accounts", len(rows), border=True)
+        st.metric("Avg score", round(sum(r["score"] for r in rows) / len(rows)), border=True)
+        st.metric("Meetings", sum(r["status"] == "Meeting set" for r in rows), border=True)
     st.caption("Ranked by score with a MongoDB aggregation pipeline. Change a status and it's saved straight away.")
     table = pd.DataFrame([{
         "Company": r["company"], "Score": r["score"], "Top signal": r["top_signal"],
@@ -256,22 +346,36 @@ def page_pipeline() -> None:
     if "saved_message" in st.session_state:
         st.toast(st.session_state.pop("saved_message"))
 
-    choice = st.selectbox("Open a brief", [r["domain"] for r in rows],
-                          format_func=lambda d: next(r["company"] for r in rows if r["domain"] == d))
-    st.button("Open brief", on_click=open_brief, args=(choice,), width="stretch")
-    st.download_button("Export CSV (Salesforce lead columns)", pipeline_csv(rows),
+    with st.container(border=True):
+        choice = st.selectbox("Open a brief", [r["domain"] for r in rows],
+                              format_func=lambda d: next(r["company"] for r in rows if r["domain"] == d))
+        st.button("Open brief", on_click=open_brief, args=(choice,), width="stretch", type="primary",
+                  icon=":material/description:")
+    st.download_button("Export CSV (Salesforce lead columns)", pipeline_csv(rows), icon=":material/download:",
                        file_name="pipeline.csv", mime="text/csv", width="stretch")
 
 
 def page_brief() -> None:
-    domain = st.session_state.get("selected")
     try:
-        account = accounts().find_one({"domain": domain}) if domain else None
+        rows = pipeline_rows(accounts())
+    except Exception as exc:
+        st.error(friendly_error(exc))
+        return
+    if not rows:
+        st.info("No accounts yet. Build one on the New account page.")
+        return
+    domains = [r["domain"] for r in rows]
+    selected = st.session_state.get("selected")
+    domain = st.selectbox("Account", domains, index=domains.index(selected) if selected in domains else 0,
+                          format_func=lambda d: next(r["company"] for r in rows if r["domain"] == d))
+    st.session_state.selected = domain
+    try:
+        account = accounts().find_one({"domain": domain})
     except Exception as exc:
         st.error(friendly_error(exc))
         return
     if not account:
-        st.info("Pick an account on the Pipeline page, or build a new one.")
+        st.info("That account was not found. Pick another one.")
         return
     show_brief(account)
 
@@ -310,13 +414,18 @@ def page_how_it_works() -> None:
 
 # ---- Main -------------------------------------------------------------------
 
-st.title("Account Brief Builder")
+hero()
 if not passcode_ok():
     st.stop()
 if not get_setting("MONGODB_URI") or not get_setting("GEMINI_API_KEY"):
     st.error("MONGODB_URI and GEMINI_API_KEY must be set in the app's secrets.")
     st.stop()
 
-page = st.radio("Page", PAGES, horizontal=True, key="page", label_visibility="collapsed")
+st.session_state.setdefault("page", PAGES[0])
+page = st.segmented_control("Page", PAGES, key="page", required=True, width="stretch",
+                            format_func=lambda name: f"{PAGE_ICONS[name]} {name}", label_visibility="collapsed")
 {"New account": page_new_account, "Pipeline": page_pipeline,
  "Brief": page_brief, "How it works": page_how_it_works}[page]()
+st.divider()
+st.caption("Built on MongoDB Atlas: document model, Atlas Vector Search and aggregation pipelines. "
+           "Text by Gemini; every quote is checked against its public source page.")

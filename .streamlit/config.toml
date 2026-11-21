@@ -4,3 +4,22 @@ toolbarMode = "viewer"  # Hide developer-only menu items such as "Deploy".
 
 [browser]
 gatherUsageStats = false
+
+# MongoDB-style colours: Forest Green buttons, Slate text, Mist highlights.
+[theme]
+base = "light"
+primaryColor = "#00684A"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F7F6"
+textColor = "#001E2B"
+linkColor = "#00684A"
+greenColor = "#00684A"
+greenBackgroundColor = "#E3FCF7"
+borderColor = "#E1E7E5"
+dataframeHeaderBackgroundColor = "#E3FCF7"
+dataframeHeaderTextColor = "#001E2B"
+font = "Lexend Deca:https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&display=swap, sans-serif"
+codeFont = "Source Code Pro:https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600&display=swap, monospace"
+headingFontWeights = 600
+baseRadius = "0.6rem"
+buttonRadius = "full"
