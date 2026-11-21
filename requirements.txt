@@ -1,5 +1,5 @@
 # Python 3.11
-streamlit>=1.50,<2
+streamlit>=1.67,<2
 pymongo[srv]>=4.10,<5
 google-genai>=1.0,<2
 requests>=2.32,<3
