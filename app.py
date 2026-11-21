@@ -147,6 +147,14 @@ def badge(text: str, colour: str, icon: str = "") -> str:
     return f":{colour}-badge[{icon} {md(text)}]".replace("[ ", "[")
 
 
+def account_labels(rows: list[dict]) -> dict[str, str]:
+    """Domain -> name for account pickers. Shared names get their domain added, because
+    Streamlit tells options apart by their label."""
+    names = [r["company"] for r in rows]
+    return {r["domain"]: r["company"] if names.count(r["company"]) == 1 else f"{r['company']} ({r['domain']})"
+            for r in rows}
+
+
 def score_colour(score: int) -> str:
     return "green" if score >= 50 else "orange" if score >= 25 else "gray"
 
@@ -348,7 +356,7 @@ def page_pipeline() -> None:
 
     with st.container(border=True):
         choice = st.selectbox("Open a brief", [r["domain"] for r in rows],
-                              format_func=lambda d: next(r["company"] for r in rows if r["domain"] == d))
+                              format_func=account_labels(rows).get)
         st.button("Open brief", on_click=open_brief, args=(choice,), width="stretch", type="primary",
                   icon=":material/description:")
     st.download_button("Export CSV (Salesforce lead columns)", pipeline_csv(rows), icon=":material/download:",
@@ -367,7 +375,7 @@ def page_brief() -> None:
     domains = [r["domain"] for r in rows]
     selected = st.session_state.get("selected")
     domain = st.selectbox("Account", domains, index=domains.index(selected) if selected in domains else 0,
-                          format_func=lambda d: next(r["company"] for r in rows if r["domain"] == d))
+                          format_func=account_labels(rows).get)
     st.session_state.selected = domain
     try:
         account = accounts().find_one({"domain": domain})
