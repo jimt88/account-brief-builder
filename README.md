@@ -282,9 +282,12 @@ phone-friendly:
    **Only select repositories**).
 4. **Create app** → **Deploy a public app from GitHub**: repository
    `jimt88/account-brief-builder`, branch `main`, main file `app.py`.
-5. **Advanced settings**: Python **3.11**, and in **Secrets** (one line each, straight quotes):
+5. **Advanced settings**: Python **3.11**, and in **Secrets** (one line each, straight quotes).
+   Never put real credentials in this README or anywhere in the repo: the values below are
+   placeholders. Locally they go in `.env` (git-ignored, see `.env.example`); on Streamlit
+   Cloud they go in the app's **Secrets** box, which the app reads via `st.secrets`.
    ```
-   MONGODB_URI = 'mongodb+srv://brief-app:PASSWORD@YOUR-CLUSTER.mongodb.net/?retryWrites=true&w=majority'
+   MONGODB_URI = 'mongodb+srv://<user>:<password>@<cluster>/'
    GEMINI_API_KEY = 'your key from https://aistudio.google.com/apikey'
    APP_PASSCODE = 'a passcode you choose'
    ```
