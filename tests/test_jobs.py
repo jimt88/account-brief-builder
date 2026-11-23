@@ -165,3 +165,17 @@ def test_board_is_cached_for_a_day():
     assert [p.url for p in again] == [p.url for p in first] and all(p.cached for p in again)
     assert cached_summary["technical_open"] == summary["technical_open"]
     assert isinstance(JobBoard("Greenhouse", "x").feed_url, str) and isinstance(Page("u", "t", "x"), Page)
+
+
+def test_smartrecruiters_reads_every_list_page():
+    import json
+    page = lambda n, start: json.dumps({"totalFound": 250, "content": [
+        {"id": str(start + i), "name": f"Data Engineer {start + i}"} for i in range(n)]})
+    def get(url, **kwargs):
+        offset = int(url.split("offset=")[1]) if "offset=" in url else 0
+        if "/postings/" in url:
+            return FakeResponse(url, text="{}")
+        return FakeResponse(url, text=page(100 if offset < 200 else 50, offset))
+    with mock.patch.object(jobs.requests, "get", side_effect=get):
+        pages, summary, _ = read_jobs(["https://careers.smartrecruiters.com/Acme"])
+    assert summary["total_open"] == summary["technical_open"] == 250 and len(pages) == 25

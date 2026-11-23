@@ -31,6 +31,7 @@ from brief.website import (MAX_CHARS_PER_PAGE, TIMEOUT_SECONDS, USER_AGENT, Page
 
 MAX_JOB_POSTINGS = 25
 MAX_WORKERS = 4  # At most 4 downloads at once.
+SMARTRECRUITERS_MAX_POSTINGS = 1_000  # 10 list pages at most.
 # A role is technical if its title or department contains one of these words.
 TECH_ROLE_WORDS = [
     "engineer", "engineering", "developer", "data", "platform", "devops", "sre", "architect",
@@ -185,6 +186,17 @@ def parse_smartrecruiters(body: str, slug: str) -> list[Posting]:
             for j in json.loads(body).get("content", [])]
 
 
+def smartrecruiters_more_pages(board: JobBoard, total: int) -> list[Posting]:
+    """Pages 2+ of a SmartRecruiters list, up to SMARTRECRUITERS_MAX_POSTINGS in all."""
+    postings = []
+    for offset in range(100, min(total, SMARTRECRUITERS_MAX_POSTINGS), 100):
+        reply = get(f"{board.feed_url}&offset={offset}")
+        if reply is None or reply.status_code != 200:
+            break
+        postings += parse_smartrecruiters(reply.text, board.slug)
+    return postings
+
+
 def parse_smartrecruiters_detail(body: str) -> tuple[str, str]:
     """(public posting URL, plain-text description) from one posting's detail call."""
     detail = json.loads(body)
@@ -260,6 +272,8 @@ def read_job_board(board: JobBoard, cache=None) -> tuple[list[Page], dict, str |
         return [], {}, f"Couldn't read the {board.platform} job board ({status}); carried on without job ads."
     try:
         postings = parse_feed(board, response.text)
+        if board.platform == "SmartRecruiters":  # 100 postings per page: read the rest too.
+            postings += smartrecruiters_more_pages(board, json.loads(response.text).get("totalFound", 0))
     except (ValueError, KeyError, ET.ParseError):
         return [], {}, f"The {board.platform} job feed wasn't in the expected format; carried on without job ads."
 
