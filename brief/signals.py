@@ -17,6 +17,11 @@ from brief.gemini_utils import TEXT_MODEL, call_with_retry, normalise, parsed_or
 from brief.website import Page
 
 MAX_SIGNALS = 6
+# Names a competitor_database quote must contain (lower case, as normalise() returns).
+OTHER_DATABASES = ["oracle", "sql server", "mssql", "postgres", "mysql", "mariadb", "dynamodb", "cosmos",
+                   "cassandra", "db2", "sybase", "couchbase", "redis", "elasticsearch", "firestore", "firebase",
+                   "aurora", "sqlite", "teradata", "spanner", "bigtable", "hbase", "neo4j", "scylla",
+                   "cockroach", "supabase", "documentdb", "sap hana", "informix", "ingres"]
 
 
 class SignalType(str, Enum):
@@ -130,6 +135,8 @@ def verify_signals(signals: list[Signal], pages: list[Page]) -> list[Signal]:
             continue
         if s.type == SignalType.MONGODB_IN_USE and "mongo" not in quote:
             continue  # "Already uses MongoDB" must be in the quote itself.
+        if s.type == SignalType.COMPETITOR_DATABASE and not any(db in quote for db in OTHER_DATABASES):
+            continue  # The quote must name the other database.
         if s.technology and normalise(s.technology) not in quote:
             s = s.model_copy(update={"technology": ""})  # Only keep a product the quote names.
         if quote in page_norms.get(s.source_url, ""):

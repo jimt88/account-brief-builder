@@ -193,8 +193,18 @@ def test_mongodb_in_use_needs_mongodb_in_the_quote():
         Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.",
                source_url=job.url, technology="Oracle"),
     ], [job])
-    assert [(s.type, s.technology) for s in kept] == [
-        (SignalType.MONGODB_IN_USE, "MongoDB"), (SignalType.COMPETITOR_DATABASE, "")]
+    assert [(s.type, s.technology) for s in kept] == [(SignalType.MONGODB_IN_USE, "MongoDB")]
+
+
+def test_competitor_database_quote_must_name_a_database():
+    job = Page(url="https://jobs.lever.co/acme/1", title="Engineer", source_type="job",
+               text="Our ledger runs on Oracle and PostgreSQL today. You will mentor engineers on our team.")
+    kept = verify_signals([
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="Our ledger runs on Oracle and PostgreSQL today.",
+               source_url=job.url, technology="Oracle"),
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.", source_url=job.url),
+    ], [job])
+    assert [s.technology for s in kept] == ["Oracle"]
 
 
 def test_pages_are_labelled_with_source_and_date():
