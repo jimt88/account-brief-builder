@@ -19,7 +19,8 @@ only cached after robots.txt allowed them, and robots.txt is still checked befor
 real download.
 """
 
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urldefrag, urljoin, urlparse
 from urllib.robotparser import RobotFileParser
@@ -73,6 +74,11 @@ class Page:
     title: str
     text: str
     cached: bool = False  # True if it came from adr_brief.page_cache, not the web.
+    source_type: str = "website"  # website, extra_link, job (later: news).
+    published_at: datetime | None = None  # Known for job ads and news, not web pages.
+    source_label: str = ""  # E.g. "Greenhouse job: Senior Backend Engineer".
+    found_links: list[str] = field(default_factory=list)  # Job-board/GitHub links on the page.
+    jobs_summary: dict = field(default_factory=dict)  # Only on a cached job board.
 
 
 # ---- Page cache (adr_brief.page_cache) ----------------------------------------
@@ -90,7 +96,11 @@ def cached_page(cache, url: str) -> tuple[Page, list[str] | None] | None:
     doc = cache.find_one({"url": url, "fetched_at": {"$gte": fresh_after}})
     if doc is None:
         return None
-    return Page(doc["final_url"], doc["title"], doc["text"], cached=True), doc.get("links")
+    page = Page(doc["final_url"], doc["title"], doc["text"], cached=True,
+                source_type=doc.get("source_type", "website"), published_at=doc.get("published_at"),
+                source_label=doc.get("source_label", ""), found_links=doc.get("found_links", []),
+                jobs_summary=doc.get("jobs_summary", {}))
+    return page, doc.get("links")
 
 
 def store_page(cache, url: str, page: Page, links: list[str] | None = None) -> None:
@@ -98,7 +108,9 @@ def store_page(cache, url: str, page: Page, links: list[str] | None = None) -> N
     if cache is None:
         return
     doc = {"url": url, "final_url": page.url, "title": page.title, "text": page.text,
-           "fetched_at": datetime.now(timezone.utc)}
+           "fetched_at": datetime.now(timezone.utc), "source_type": page.source_type,
+           "published_at": page.published_at, "source_label": page.source_label,
+           "found_links": page.found_links, "jobs_summary": page.jobs_summary}
     update = {"$set": doc}
     if links is None:
         update["$unset"] = {"links": ""}  # Old links would be stale; re-read as a home page next time.
@@ -142,6 +154,24 @@ def fetch(url: str) -> tuple[str, BeautifulSoup] | None:
     if response.status_code != 200 or "html" not in response.headers.get("Content-Type", ""):
         return None  # 401/403 = login or paywall, 404 = missing; skip all of them.
     return response.url, BeautifulSoup(response.text, "html.parser")
+
+
+# Off-site links worth following up: job boards (brief/jobs.py) and GitHub (later).
+OUTSIDE_LINK_HOSTS = re.compile(
+    r"(^|\.)(greenhouse\.io|lever\.co|ashbyhq\.com|smartrecruiters\.com|workable\.com|myworkdayjobs\.com"
+    r"|taleo\.net|github\.com)$|\.jobs\.personio\.(de|com)$|successfactors\.")
+
+
+def outside_links(soup: BeautifulSoup, base_url: str) -> list[str]:
+    """Job-board and GitHub links in <a href>, <iframe src> and <script src>.
+    Call before page_text(), which removes scripts."""
+    found = []
+    for tag, attr in (("a", "href"), ("iframe", "src"), ("script", "src")):
+        for element in soup.find_all(tag, **{attr: True}):
+            url = urljoin(base_url, element[attr])
+            if OUTSIDE_LINK_HOSTS.search(urlparse(url).netloc.lower()) and url not in found:
+                found.append(url)
+    return found[:50]
 
 
 def page_text(soup: BeautifulSoup) -> str:
@@ -222,7 +252,8 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
         pages = []
         if not looks_like_login(home_soup):
             title = home_soup.title.get_text(strip=True) if home_soup.title else home_url
-            pages.append(Page(home_url, title, page_text(home_soup)[:MAX_CHARS_PER_PAGE]))
+            links = outside_links(home_soup, home_url)
+            pages.append(Page(home_url, title, page_text(home_soup)[:MAX_CHARS_PER_PAGE], found_links=links))
 
     seen, read_links = {home_url.rstrip("/")}, []
     for url in candidates:
@@ -252,9 +283,10 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
             continue
         seen.add(final_url.rstrip("/"))
         title = soup.title.get_text(strip=True) if soup.title else final_url
+        links = outside_links(soup, final_url)
         text = page_text(soup)
         if len(text) >= MIN_CHARS:
-            pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE]))
+            pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE], found_links=links))
             store_page(cache, url, pages[-1])
             read_links.append(url)
         else:
@@ -282,6 +314,7 @@ def read_extra_pages(urls: list[str], cache=None) -> tuple[list[Page], list[str]
             continue
         hit = cached_page(cache, url)
         if hit:
+            hit[0].source_type = "extra_link"
             pages.append(hit[0])
             continue
         if not load_robots(url).can_fetch(USER_AGENT, url):
@@ -292,12 +325,13 @@ def read_extra_pages(urls: list[str], cache=None) -> tuple[list[Page], list[str]
             skipped.append(f"{url}: couldn't open it (not public, missing or not a web page)")
             continue
         final_url, soup = result
+        links = outside_links(soup, final_url)
         text = page_text(soup)
         if looks_like_login(soup) or len(text) < MIN_CHARS:
             skipped.append(f"{url}: no readable text (login page or needs JavaScript)")
             continue
         title = soup.title.get_text(strip=True) if soup.title else final_url
-        pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE]))
+        pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE], source_type="extra_link", found_links=links))
         store_page(cache, url, pages[-1])
     for url in urls[MAX_EXTRA_PAGES:]:
         skipped.append(f"{url}: only the first {MAX_EXTRA_PAGES} extra links are read")

@@ -181,3 +181,28 @@ def test_refreshing_home_as_extra_link_drops_its_old_links():
         cache.docs["https://example.com"]["fetched_at"] -= website.timedelta(seconds=website.CACHE_SECONDS + 1)
         read_extra_pages(["https://example.com"], cache=cache)
     assert "links" not in cache.docs["https://example.com"]
+
+
+def test_mongodb_in_use_needs_mongodb_in_the_quote():
+    job = Page(url="https://jobs.lever.co/acme/1", title="Engineer", source_type="job",
+               text="You will run MongoDB Atlas clusters in production. You will mentor engineers on our team.")
+    kept = verify_signals([
+        Signal(type=SignalType.MONGODB_IN_USE, quote="You will run MongoDB Atlas clusters in production.",
+               source_url=job.url, technology="MongoDB"),
+        Signal(type=SignalType.MONGODB_IN_USE, quote="You will mentor engineers on our team.", source_url=job.url),
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.",
+               source_url=job.url, technology="Oracle"),
+    ], [job])
+    assert [(s.type, s.technology) for s in kept] == [
+        (SignalType.MONGODB_IN_USE, "MongoDB"), (SignalType.COMPETITOR_DATABASE, "")]
+
+
+def test_pages_are_labelled_with_source_and_date():
+    from datetime import datetime, timezone
+    from brief.signals import format_pages
+    job = Page(url="https://jobs.lever.co/acme/1", title="Engineer", text="x" * 100_000, source_type="job",
+               published_at=datetime(2026, 11, 1, tzinfo=timezone.utc))
+    text = format_pages([PAGE, job])
+    assert "=== JOB (2026-11-01): https://jobs.lever.co/acme/1 ===" in text
+    assert "=== WEBSITE: https://example.com/about ===" in text
+    assert len(text) < 40_000  # Long pages are cut to a fair share.

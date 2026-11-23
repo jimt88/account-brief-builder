@@ -231,6 +231,10 @@ def show_brief(a: dict) -> None:
             st.caption(f"Total {sum(r['Points'] for r in rows)} (capped at 100).")
         else:
             st.write("No scoring signals found.")
+        if a.get("jobs"):
+            j = a["jobs"]
+            st.markdown(f":material/work: **Hiring:** [{j['platform']}]({j['board_url']}): "
+                        f"{j['total_open']} open roles, {j['technical_open']} technical")
         st.subheader("Signals", anchor=False)
         st.caption("Every quote is word for word from the linked page.")
         for n, x in enumerate(a["signals"], start=1):
@@ -423,9 +427,13 @@ def page_how_it_works() -> None:
 1. **Read public pages.** Home, About, Careers and the engineering blog (max 4 pages,
    10 s each). Respects robots.txt; never logs in; no LinkedIn or paywalls. Pages read
    in the last 24 hours come from a MongoDB cache instead of the web.
+   **Job ads:** if the careers page links to a public job board (Greenhouse, Lever,
+   Ashby, SmartRecruiters, Personio or Workable), the app reads its public feed and
+   keeps the 25 newest technical roles, with dates. Emails and phone numbers are removed.
 2. **Find signals.** Gemini lists signals (AI initiative, hiring engineers, legacy
-   database, modernisation, scale or real time, new market or product), each with a
-   quote. **Any quote that isn't word for word on the page is dropped.**
+   database, competitor database, MongoDB already in use, modernisation, scale or
+   real time, new market or product), each with a quote. Job ads count as the
+   strongest evidence of the stack a company really uses. **Any quote that isn't word for word on the page is dropped.**
 3. **Score 0–100.** +25 AI initiative, +20 hiring engineers, +20 legacy database,
    +15 modernisation, +10 scale or real time, +10 HQ in EMEA. The breakdown is saved.
 4. **Match a customer story.** Hybrid search finds the closest of 48 public MongoDB
