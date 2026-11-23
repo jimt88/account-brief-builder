@@ -67,6 +67,11 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 - **Atlas automated embedding on M0:** query embeddings are limited to about 3 a minute
   (one per story match). If it's hit, the app says "Atlas embedding limit reached, try
   again in a minute". Looping scripts pause 21 s between searches.
+- **GitHub (optional source):** 60 API requests an hour per IP without a token; a brief
+  uses at most 40, and only if the company links its GitHub org. Set `GITHUB_TOKEN` (a
+  free personal token with no scopes) for 5,000 an hour.
+- **GDELT news:** about one request every 5 seconds per IP; one per brief. If it's busy
+  the brief is built without news.
 - **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts.
   Up to 3 search/vector indexes per cluster (sample datasets count too); this app uses 2
   (`story_autoembed_index`, `story_text_index`).
@@ -299,16 +304,30 @@ python scripts/extract_signals.py "Ocado Group" ocadogroup.com
    paywalls) and labelled NEWS with its date. The search runs in the background while
    the website is read. GDELT allows about one request every 5 seconds per IP; if it is
    busy or slow (20 s timeout) the brief carries on without news and says so.
-4. Gemini returns JSON: what_they_do, industry, industry_group, hq_country (only if
+4. **GitHub dependencies** (`brief/github.py`): only if the company's pages (or a pasted
+   link) link to `github.com/{org}`; the org is never guessed from the name. Using the
+   GitHub REST API, it takes the org's 10 most recently pushed public repos (no forks or
+   archived repos) and reads their root dependency files (`requirements.txt`,
+   `pyproject.toml`, `package.json`, `pom.xml`, `build.gradle(.kts)`, `go.mod`, `Gemfile`,
+   `composer.json`, `*.csproj`), with a budget of 40 requests. `DB_LIBRARIES` maps
+   libraries to technologies (e.g. `pymongo`/`mongoose` -> MongoDB, `psycopg2` ->
+   PostgreSQL, `ojdbc` -> Oracle, `kafkajs` -> Kafka, `openai` -> AI/LLM; `boto3` counts
+   as DynamoDB only if the file mentions DynamoDB). Each match becomes a signal in code,
+   with no Gemini call: the exact dependency line as the quote, the file's github.com
+   link, the repo's last push as the date, one signal per technology (newest repo wins).
+   Without a token GitHub allows 60 requests an hour per IP; set the optional
+   `GITHUB_TOKEN` (a free personal token with no scopes) for 5,000.
+5. Gemini returns JSON: what_they_do, industry, industry_group, hq_country (only if
    the pages state it, otherwise empty) and up to 6 signals `{type, quote, source_url,
    technology}`. Types: ai_initiative, hiring_engineers, legacy_database,
    competitor_database, mongodb_in_use, modernisation, scale_or_real_time,
    new_market_or_product, other. Pages are labelled WEBSITE, EXTRA_LINK, JOB or NEWS
    (with the date). Job ads are treated as the strongest evidence of the stack in use;
    news as evidence of recent events.
-5. Every quote is checked word for word against the full page text (ignoring case,
+6. Every quote is checked word for word against the full page text (ignoring case,
    spacing and curly quotes); signals whose quote isn't really there are dropped.
-6. The company's "situation" is matched to the closest MongoDB story (hybrid search).
+   GitHub signals get the same check against the dependency file, then are added.
+7. The company's "situation" is matched to the closest MongoDB story (hybrid search).
 
 Add `--json` to get the raw result. Shared code lives in `brief/` (`website.py`,
 `signals.py`, `story_search.py`) so the Streamlit app can reuse it.

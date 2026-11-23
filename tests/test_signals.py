@@ -28,7 +28,7 @@ def signal(quote, url=PAGE.url, kind=SignalType.LEGACY_DATABASE):
 
 def test_real_quote_is_kept():
     real = signal("We are migrating our legacy Oracle database to the cloud this year.")
-    assert verify_signals([real], [PAGE]) == [real]
+    assert verify_signals([real], [PAGE]) == [real.model_copy(update={"source_type": "website"})]
 
 
 def test_fake_quote_is_rejected():

@@ -1,0 +1,6 @@
+# Core
+fastapi==0.111.0
+psycopg2-binary==2.9.9
+openai>=1.30
+cx_Oracle==8.3.0
+-r dev-requirements.txt

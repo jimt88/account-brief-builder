@@ -17,6 +17,8 @@ from brief.signals import CompanyProfile, extract_signals
 from brief.story_search import COLLECTION_NAME
 from concurrent.futures import ThreadPoolExecutor
 
+from brief.github import read_github
+from brief.github import summary_line as github_line
 from brief.jobs import read_jobs, summary_line
 from brief.news import read_news
 from brief.website import PAGE_CACHE_COLLECTION, read_extra_pages, read_website
@@ -39,6 +41,7 @@ class BriefResult:
     signals_dropped: int = 0
     jobs: dict = field(default_factory=dict)  # jobs_summary: platform, board_url, total_open, ...
     news: dict = field(default_factory=dict)  # news_summary: articles_found, articles_read
+    github: dict = field(default_factory=dict)  # github_summary: org, repos_checked, files_read
     links_skipped: list[str] = field(default_factory=list)
     score: int = 0
     score_breakdown: list[dict] = field(default_factory=list)
@@ -87,6 +90,13 @@ def build_brief(
     job_urls = {p.url for p in job_pages}  # A feed posting beats the same posting read as a web page.
     pages = [p for p in pages if p.url not in job_urls] + job_pages
 
+    # Dependency files from the company's public GitHub org, only if its pages link to one.
+    github_signals, github_pages, github, github_note = read_github(links)
+    if github:
+        progress(github_line(github, github_signals))
+    if github_note:
+        skipped.append(github_note)
+
     try:
         news_pages, news, news_note = news_future.result()
     except Exception as exc:  # noqa: BLE001 - news is a bonus: never lose the brief over it.
@@ -112,6 +122,7 @@ def build_brief(
 
     progress(f"2/5 Finding signals in {len(pages)} pages ...")
     profile, dropped = extract_signals(gemini, company, pages)
+    profile.signals += github_signals  # Found in code, already checked word for word.
     if not profile.signals:
         raise BriefError(
             "No signals with a word-for-word quote were found on the public pages. Try the "
@@ -130,9 +141,10 @@ def build_brief(
     warnings = check_brief(brief, profile, story)
 
     progress("5/5 Saving the account ...")
-    pages_read = [p.url for p in pages]
+    pages_read = [p.url for p in pages + github_pages]
     account = save_account(db[ACCOUNTS_COLLECTION], website, profile, score, breakdown,
-                           story, brief, warnings, pages_read, jobs=jobs, news=news)
+                           story, brief, warnings, pages_read, jobs=jobs, news=news,
+                           github=github)
     return BriefResult(
         profile=profile,
         story=story,
@@ -142,6 +154,7 @@ def build_brief(
         signals_dropped=dropped,
         jobs=jobs,
         news=news,
+        github=github,
         links_skipped=skipped,
         score=score,
         score_breakdown=breakdown,
