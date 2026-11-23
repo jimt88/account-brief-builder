@@ -20,7 +20,14 @@ PIPELINE = [
         "description": "$profile.what_they_do",
         # The highest-scoring reason (the breakdown is stored highest points first).
         "top_signal": {"$ifNull": [{"$first": "$score_breakdown.reason"}, "-"]},
-        "top_quote": {"$ifNull": [{"$first": "$signals.quote"}, ""]},
+        # A quote for that same signal type; else the first quote; else "".
+        "top_quote": {"$let": {
+            "vars": {"matching": {"$filter": {
+                "input": {"$ifNull": ["$signals", []]},
+                "cond": {"$eq": ["$$this.type", {"$first": "$score_breakdown.type"}]},
+            }}},
+            "in": {"$ifNull": [{"$first": "$$matching.quote"}, {"$first": "$signals.quote"}, ""]},
+        }},
         "story": "$matched_story.company",
     }},
 ]

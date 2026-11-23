@@ -412,7 +412,7 @@ def page_how_it_works() -> None:
 | Aggregation pipeline | Pipeline page | Sorts and shapes accounts on the server |
 | Schema validation | `stories`, `accounts` | Flexible documents, but bad data (e.g. a score of 150) is rejected |
 | Unique indexes | `stories.source_url`, `accounts.domain` | Re-running never creates duplicates |
-| Upsert + `$push` | Saving an account | One write updates the brief and keeps the old one in `history` |
+| Atomic pipeline upsert | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) archives the old version inside the same write (last 5 kept), so two rebuilds at once can't lose or duplicate a brief |
 | PyMongo driver | Everywhere | The supported way to connect (no Data API) |
 """)
 

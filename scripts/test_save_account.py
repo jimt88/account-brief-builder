@@ -1,8 +1,9 @@
 """Live check that saving accounts is safe when several saves run at once (needs Atlas).
 
-Runs 6 saves of the same account in parallel on a temporary collection and checks
-the result: one document, 5 history entries (every replaced brief exactly once),
-status still "New", and text containing "$" stored as-is. Drops the collection after.
+Runs 7 saves of the same account in parallel on a temporary collection and checks
+the result: one document, history capped at MAX_HISTORY (5) with no brief lost twice
+or kept twice, status still "New", and text containing "$" stored as-is. Drops the
+collection after.
 
 Run from the project folder:  python scripts/test_save_account.py
 """
@@ -16,12 +17,12 @@ from dotenv import load_dotenv
 from pymongo import MongoClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from brief.build import Email, Persona, SalesBrief, save_account  # noqa: E402
+from brief.build import MAX_HISTORY, Email, Persona, SalesBrief, save_account  # noqa: E402
 from brief.industries import IndustryGroup  # noqa: E402
 from brief.signals import CompanyProfile  # noqa: E402
 from brief.story_search import DB_NAME  # noqa: E402
 
-SAVES = 6
+SAVES = 7
 
 
 def main() -> int:
@@ -49,8 +50,9 @@ def main() -> int:
     briefs = [h["brief"]["value_hook"] for h in doc["history"]] + [doc["brief"]["value_hook"]]
     checks = {
         "one document": len(docs) == 1,
-        f"{SAVES - 1} history entries": len(doc["history"]) == SAVES - 1,
-        "every brief kept exactly once": sorted(briefs) == sorted(f"Brief {n} costs $5m" for n in range(SAVES)),
+        f"{MAX_HISTORY} history entries (capped)": len(doc["history"]) == MAX_HISTORY,
+        "no brief kept twice": len(set(briefs)) == len(briefs) == MAX_HISTORY + 1,
+        'text with "$" stored as-is': set(briefs) <= {f"Brief {n} costs $5m" for n in range(SAVES)},
         'status still "New"': doc["status"] == "New",
     }
     test.drop()
