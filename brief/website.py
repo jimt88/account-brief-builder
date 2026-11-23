@@ -255,7 +255,7 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
             links = outside_links(home_soup, home_url)
             pages.append(Page(home_url, title, page_text(home_soup)[:MAX_CHARS_PER_PAGE], found_links=links))
 
-    seen, read_links = {home_url.rstrip("/")}, []
+    seen, read_links, thin_page_links = {home_url.rstrip("/")}, [], []
     for url in candidates:
         if len(pages) >= max_pages:
             break
@@ -291,6 +291,11 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
             read_links.append(url)
         else:
             notes.append(f"Skipped {url}: almost no text (it probably needs JavaScript).")
+            thin_page_links += links  # E.g. a careers page that only embeds a job board.
+
+    # Keep job-board links from thin pages on the home page (and in its cache entry).
+    if pages and thin_page_links:
+        pages[0].found_links = list(dict.fromkeys(pages[0].found_links + thin_page_links))
 
     # Cache the home page with the links that worked, so next time needs no downloads.
     if pages and not pages[0].cached and pages[0].url == home_url and len(pages[0].text) >= MIN_CHARS:
@@ -303,9 +308,11 @@ def blocked_site(url: str) -> bool:
     return any(host == b or host.endswith("." + b) or (b.endswith(".") and b in host) for b in BLOCKED_SITES)
 
 
-def read_extra_pages(urls: list[str], cache=None) -> tuple[list[Page], list[str]]:
+def read_extra_pages(urls: list[str], cache=None,
+                     links_out: list[str] | None = None) -> tuple[list[Page], list[str]]:
     """Read the extra links the user pasted. Returns (pages, reasons for any skipped).
-    If `cache` is given, links read in the last 24 hours come from MongoDB."""
+    If `cache` is given, links read in the last 24 hours come from MongoDB. Job-board
+    links found on pages with too little text are added to `links_out`."""
     pages, skipped = [], []
     for url in urls[:MAX_EXTRA_PAGES]:
         url = normalise_website(url)
@@ -328,6 +335,8 @@ def read_extra_pages(urls: list[str], cache=None) -> tuple[list[Page], list[str]
         links = outside_links(soup, final_url)
         text = page_text(soup)
         if looks_like_login(soup) or len(text) < MIN_CHARS:
+            if links_out is not None:
+                links_out += links
             skipped.append(f"{url}: no readable text (login page or needs JavaScript)")
             continue
         title = soup.title.get_text(strip=True) if soup.title else final_url

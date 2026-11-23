@@ -179,3 +179,27 @@ def test_smartrecruiters_reads_every_list_page():
     with mock.patch.object(jobs.requests, "get", side_effect=get):
         pages, summary, _ = read_jobs(["https://careers.smartrecruiters.com/Acme"])
     assert summary["total_open"] == summary["technical_open"] == 250 and len(pages) == 25
+
+
+def test_board_embedded_on_a_thin_careers_page_is_kept():
+    from brief import website
+    long_text = "We build software for logistics companies across Europe. " * 10
+
+    def site(url, **kwargs):
+        pages = {
+            "https://acme.com/robots.txt": "",
+            "https://acme.com": f'<a href="/careers">Careers</a><p>{long_text}</p>',
+            "https://acme.com/careers": '<h1>Join us</h1><script src="https://boards.greenhouse.io/embed/job_board/js?for=acme"></script>',
+        }
+        html = pages.get(url.rstrip("/"))
+        response = FakeResponse(url, status=200 if html is not None else 404, text=html or "")
+        response.headers = {"Content-Type": "text/html"}
+        return response
+
+    with mock.patch.object(website.requests, "get", side_effect=site):
+        pages = website.read_website("acme.com")
+        thin = []
+        website.read_extra_pages(["https://acme.com/careers"], links_out=thin)
+    assert [p.url for p in pages] == ["https://acme.com"]
+    assert find_job_board(pages[0].found_links)[0].slug == "acme"
+    assert find_job_board(thin)[0].slug == "acme"
