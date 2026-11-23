@@ -14,7 +14,10 @@ from brief.build import (ACCOUNTS_COLLECTION, SalesBrief, check_brief, match_sto
                          score_account, write_brief)
 from brief.signals import CompanyProfile, extract_signals
 from brief.story_search import COLLECTION_NAME
+from concurrent.futures import ThreadPoolExecutor
+
 from brief.jobs import read_jobs, summary_line
+from brief.news import read_news
 from brief.website import PAGE_CACHE_COLLECTION, read_extra_pages, read_website
 
 
@@ -31,6 +34,7 @@ class BriefResult:
     pages_read: list[str]
     signals_dropped: int = 0
     jobs: dict = field(default_factory=dict)  # jobs_summary: platform, board_url, total_open, ...
+    news: dict = field(default_factory=dict)  # news_summary: articles_found, articles_read
     links_skipped: list[str] = field(default_factory=list)
     score: int = 0
     score_breakdown: list[dict] = field(default_factory=list)
@@ -52,6 +56,9 @@ def build_brief(
     progress(f"1/5 Reading {website} ...")
     site_problem, notes = None, []
     cache = db[PAGE_CACHE_COLLECTION]
+    # GDELT can take 10-20 s, so the news search runs while the website is read.
+    background = ThreadPoolExecutor(max_workers=1)
+    news_future = background.submit(read_news, company, website, cache)
     try:
         pages = read_website(website, notes=notes, cache=cache)
     except ValueError as exc:  # Site down, blocked or robots.txt says no.
@@ -75,6 +82,15 @@ def build_brief(
         skipped.append(job_note)
     job_urls = {p.url for p in job_pages}  # A feed posting beats the same posting read as a web page.
     pages = [p for p in pages if p.url not in job_urls] + job_pages
+
+    news_pages, news, news_note = news_future.result()
+    background.shutdown()
+    if news:
+        progress(f"News: {news['articles_found']} recent articles, {news['articles_read']} readable")
+    if news_note:
+        skipped.append(news_note)
+    seen = {p.url for p in pages}
+    pages += [p for p in news_pages if p.url not in seen]
     for note in skipped:
         progress(note)
 
@@ -107,7 +123,7 @@ def build_brief(
     progress("5/5 Saving the account ...")
     pages_read = [p.url for p in pages]
     account = save_account(db[ACCOUNTS_COLLECTION], website, profile, score, breakdown,
-                           story, brief, warnings, pages_read, jobs=jobs)
+                           story, brief, warnings, pages_read, jobs=jobs, news=news)
     return BriefResult(
         profile=profile,
         story=story,
@@ -116,6 +132,7 @@ def build_brief(
         pages_read=pages_read,
         signals_dropped=dropped,
         jobs=jobs,
+        news=news,
         links_skipped=skipped,
         score=score,
         score_breakdown=breakdown,

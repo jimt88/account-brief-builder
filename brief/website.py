@@ -74,7 +74,7 @@ class Page:
     title: str
     text: str
     cached: bool = False  # True if it came from adr_brief.page_cache, not the web.
-    source_type: str = "website"  # website, extra_link, job (later: news).
+    source_type: str = "website"  # website, extra_link, job or news.
     published_at: datetime | None = None  # Known for job ads and news, not web pages.
     source_label: str = ""  # E.g. "Greenhouse job: Senior Backend Engineer".
     found_links: list[str] = field(default_factory=list)  # Job-board/GitHub links on the page.

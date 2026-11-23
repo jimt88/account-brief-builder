@@ -306,7 +306,7 @@ def domain_of(website: str) -> str:
 
 def save_account(accounts, website: str, profile: CompanyProfile, score: int, breakdown: list[dict],
                  story: dict, brief: SalesBrief, warnings: list[str], pages_read: list[str],
-                 jobs: dict | None = None) -> dict:
+                 jobs: dict | None = None, news: dict | None = None) -> dict:
     """Upsert one document per company, keyed by domain. On a re-run the previous
     brief and score are appended to history[] (only the last MAX_HISTORY are kept)
     and the status is kept.
@@ -333,6 +333,7 @@ def save_account(accounts, website: str, profile: CompanyProfile, score: int, br
         "warnings": warnings,
         "pages_read": pages_read,
         "jobs": jobs or None,  # jobs_summary from brief/jobs.py, if a job board was found.
+        "news": news or None,  # news_summary from brief/news.py.
         "updated_at": now,
     }
     previous_version = {"brief": "$brief", "score": "$score",

@@ -28,7 +28,7 @@ VALIDATOR = {
             "url": {"bsonType": "string"},
             "text": {"bsonType": "string"},
             "fetched_at": {"bsonType": "date"},
-            "source_type": {"enum": ["website", "extra_link", "job", "job_board"]},
+            "source_type": {"enum": ["website", "extra_link", "job", "job_board", "news"]},
             "published_at": {"bsonType": ["date", "null"]},
         },
     }
