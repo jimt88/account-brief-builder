@@ -19,7 +19,10 @@ only cached after robots.txt allowed them, and robots.txt is still checked befor
 real download.
 """
 
+import ipaddress
+import logging
 import re
+import socket
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urldefrag, urljoin, urlparse
@@ -27,10 +30,12 @@ from urllib.robotparser import RobotFileParser
 
 import requests
 from bs4 import BeautifulSoup
+from pymongo.errors import PyMongoError
 
 USER_AGENT = "Mozilla/5.0 (compatible; account-brief-builder/0.1)"
 MAX_PAGES = 4  # Home page + about + careers + engineering blog.
 TIMEOUT_SECONDS = 10
+MAX_REDIRECTS = 5
 # The pages we look for after the home page, in order, and words that identify them.
 TARGET_PAGES = {
     "about": ["about", "who-we-are", "company", "ueber-uns", "unternehmen", "a-propos",
@@ -116,7 +121,10 @@ def store_page(cache, url: str, page: Page, links: list[str] | None = None) -> N
         update["$unset"] = {"links": ""}  # Old links would be stale; re-read as a home page next time.
     else:
         doc["links"] = links
-    cache.update_one({"url": url}, update, upsert=True)
+    try:
+        cache.update_one({"url": url}, update, upsert=True)
+    except PyMongoError as exc:  # The cache is a speed-up: never lose a page because of it.
+        logging.getLogger(__name__).warning("Couldn't cache %s: %s", url, exc)
 
 
 def normalise_website(website: str) -> str:
@@ -137,19 +145,49 @@ def same_site(url: str, home: str) -> bool:
 def load_robots(home: str) -> RobotFileParser:
     robots = RobotFileParser()
     try:
-        response = requests.get(urljoin(home, "/robots.txt"), headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS)
-        lines = response.text.splitlines() if response.status_code == 200 else []
+        response = public_get(urljoin(home, "/robots.txt"))
+        lines = response.text.splitlines() if response is not None and response.status_code == 200 else []
     except requests.RequestException:
         lines = []
     robots.parse(lines)  # No robots.txt means everything is allowed.
     return robots
 
 
+def private_host(url: str) -> bool:
+    """True if url points at this machine or a private network (e.g. 127.0.0.1, 10.x,
+    169.254.x), directly or through DNS. Names that don't resolve are left to requests."""
+    host = urlparse(url).hostname or ""
+    try:
+        addresses = {info[4][0] for info in socket.getaddrinfo(host, None)}
+    except (socket.gaierror, UnicodeError, ValueError):
+        return False
+    return any(not ipaddress.ip_address(a.split("%")[0]).is_global for a in addresses)
+
+
+def public_get(url: str):
+    """requests.get that follows up to MAX_REDIRECTS redirects itself and refuses any
+    hop to a non-public address, so a page can't redirect the app to internal services.
+    Returns the response (its .url is the final URL), or None."""
+    for _ in range(MAX_REDIRECTS + 1):
+        if not url.startswith(("http://", "https://")) or private_host(url):
+            return None
+        try:
+            response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS,
+                                    allow_redirects=False)
+        except requests.RequestException:
+            return None
+        location = getattr(response, "headers", {}).get("Location")
+        if response.status_code not in (301, 302, 303, 307, 308) or not location:
+            response.url = url
+            return response
+        url = urljoin(url, location)
+    return None
+
+
 def fetch(url: str) -> tuple[str, BeautifulSoup] | None:
     """Download one public HTML page. Returns (final_url, soup) or None."""
-    try:
-        response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS)
-    except requests.RequestException:
+    response = public_get(url)
+    if response is None:
         return None
     if response.status_code != 200 or "html" not in response.headers.get("Content-Type", ""):
         return None  # 401/403 = login or paywall, 404 = missing; skip all of them.
@@ -321,7 +359,7 @@ def read_extra_pages(urls: list[str], cache=None,
             continue
         hit = cached_page(cache, url)
         if hit:
-            hit[0].source_type = "extra_link"
+            hit[0].source_type, hit[0].published_at, hit[0].source_label = "extra_link", None, ""
             pages.append(hit[0])
             continue
         if not load_robots(url).can_fetch(USER_AGENT, url):
@@ -333,8 +371,9 @@ def read_extra_pages(urls: list[str], cache=None,
             continue
         final_url, soup = result
         links = outside_links(soup, final_url)
+        login = looks_like_login(soup)  # Before page_text(), which removes forms.
         text = page_text(soup)
-        if looks_like_login(soup) or len(text) < MIN_CHARS:
+        if login or len(text) < MIN_CHARS:
             if links_out is not None:
                 links_out += links
             skipped.append(f"{url}: no readable text (login page or needs JavaScript)")

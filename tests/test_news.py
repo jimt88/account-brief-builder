@@ -82,3 +82,54 @@ def test_gdelt_failure_is_a_note_not_an_error():
     with mock.patch.object(news.requests, "get", side_effect=news.requests.Timeout):
         pages, summary, note = read_news("Acme Ltd", "acme.com")
     assert pages == [] and "didn't answer" in note
+
+
+ARTICLE = {"url": "https://news.example.ie/boi-ai", "title": "Bank of Ireland rolls out AI",
+           "published_at": datetime(2026, 11, 20, tzinfo=timezone.utc), "domain": "news.example.ie"}
+
+
+def test_login_form_page_is_not_news():
+    form = '<form><input type="password"></form><p>' + "Sign in to keep reading this story about AI. " * 20 + "</p>"
+    with mock.patch.object(news.requests, "get",
+                           side_effect=lambda url, **kw: FakeResponse(url, status=404 if "robots" in url else 200,
+                                                                      text=form)):
+        assert news.read_article(ARTICLE) is None
+
+
+def test_news_cache_is_kept_apart_from_website_cache():
+    cache = mock.Mock()
+    cache.find_one.return_value = None
+    with mock.patch.object(news.requests, "get", side_effect=fake_web):
+        page = news.read_article(ARTICLE, cache)
+    assert page.source_type == "news"
+    assert cache.find_one.call_args[0][0]["url"] == "news:https://news.example.ie/boi-ai"
+    assert cache.update_one.call_args[0][0] == {"url": "news:https://news.example.ie/boi-ai"}
+
+
+def test_cache_write_failure_keeps_the_article():
+    from pymongo.errors import WriteError
+    cache = mock.Mock()
+    cache.find_one.return_value = None
+    cache.update_one.side_effect = WriteError("Document failed validation")
+    with mock.patch.object(news.requests, "get", side_effect=fake_web):
+        assert news.read_article(ARTICLE, cache).source_type == "news"
+
+
+def test_redirect_to_a_private_address_is_refused():
+    from brief import website
+
+    class Redirect(FakeResponse):
+        def __init__(self, url):
+            super().__init__(url, status=302)
+            self.headers["Location"] = "http://169.254.169.254/latest/meta-data/"
+    calls = []
+
+    def get(url, **kwargs):
+        calls.append(url)
+        assert kwargs.get("allow_redirects") is False
+        return Redirect(url)
+    with mock.patch.object(website.requests, "get", side_effect=get):
+        assert website.fetch("https://news.example.ie/boi-ai") is None
+    assert calls == ["https://news.example.ie/boi-ai"]
+    assert website.private_host("http://127.0.0.1/") and website.private_host("http://localhost/")
+    assert not website.private_host("http://8.8.8.8/")

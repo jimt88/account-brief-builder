@@ -30,6 +30,7 @@ GDELT_TIMEOUT_SECONDS = 20
 MAX_NEWS_ARTICLES = 8
 SHORT_NAME_CHARS = 5  # "N26", "DSV": too short to search on their own.
 MAX_WORKERS = 4
+NEWS_CACHE_PREFIX = "news:"  # Cache key prefix: a news article and the same URL read as a website stay apart.
 
 
 def gdelt_query(company: str, website: str = "") -> str:
@@ -91,7 +92,7 @@ def search_gdelt(company: str, website: str = "") -> dict:
 def read_article(article: dict, cache=None) -> Page | None:
     """Open one article with the website reader's rules. None if it can't be read."""
     url = article["url"]
-    hit = cached_page(cache, url)
+    hit = cached_page(cache, NEWS_CACHE_PREFIX + url)  # Own cache key: website readers never mix with news.
     if hit:
         return hit[0]
     if blocked_site(url) or not load_robots(url).can_fetch(USER_AGENT, url):
@@ -100,12 +101,14 @@ def read_article(article: dict, cache=None) -> Page | None:
     if result is None:
         return None
     final_url, soup = result
+    if looks_like_login(soup):  # Before page_text(), which removes forms.
+        return None
     text = page_text(soup)
-    if looks_like_login(soup) or len(text) < MIN_CHARS:
+    if len(text) < MIN_CHARS:
         return None
     page = Page(final_url, article["title"], text[:MAX_CHARS_PER_PAGE], source_type="news",
                 published_at=article["published_at"], source_label=f"News: {article['domain']}")
-    store_page(cache, url, page)
+    store_page(cache, NEWS_CACHE_PREFIX + url, page)
     return page
 
 

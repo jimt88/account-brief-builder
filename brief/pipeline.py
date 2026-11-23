@@ -5,6 +5,7 @@ and scripts/make_brief.py:
   -> closest MongoDB story -> brief + checks -> saved in adr_brief.accounts
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -23,6 +24,9 @@ from brief.website import PAGE_CACHE_COLLECTION, read_extra_pages, read_website
 
 class BriefError(Exception):
     """A problem we can explain to the user in one sentence (e.g. no readable pages)."""
+
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,8 +87,13 @@ def build_brief(
     job_urls = {p.url for p in job_pages}  # A feed posting beats the same posting read as a web page.
     pages = [p for p in pages if p.url not in job_urls] + job_pages
 
-    news_pages, news, news_note = news_future.result()
-    background.shutdown()
+    try:
+        news_pages, news, news_note = news_future.result()
+    except Exception as exc:  # noqa: BLE001 - news is a bonus: never lose the brief over it.
+        log.warning("News failed: %s", exc)
+        news_pages, news, news_note = [], {}, "Skipped news: something went wrong while reading it."
+    finally:
+        background.shutdown(wait=False)
     if news:
         progress(f"News: {news['articles_found']} recent articles, {news['articles_read']} readable")
     if news_note:
