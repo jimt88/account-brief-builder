@@ -91,7 +91,7 @@ def build_brief(
     pages = [p for p in pages if p.url not in job_urls] + job_pages
 
     # Dependency files from the company's public GitHub org, only if its pages link to one.
-    github_signals, github_pages, github, github_note = read_github(links)
+    github_signals, github_pages, github, github_note = read_github(links, preferred=list(extra_urls or []))
     if github:
         progress(github_line(github, github_signals))
     if github_note:

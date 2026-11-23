@@ -165,3 +165,11 @@ def test_one_line_package_json_still_quotes_each_dependency():
     text = '{"name":"app","dependencies":{"express":"^4","mongodb":"^6.3.0","ioredis":"^5"}}'
     signals = dependency_signals("package.json", text, "https://github.com/a/b/blob/main/package.json", None)
     assert {s.technology: s.quote for s in signals} == {"MongoDB": '"mongodb":"^6.3.0"', "Redis": '"ioredis":"^5"'}
+
+
+def test_pasted_org_wins_and_org_links_beat_third_party_repos():
+    page_links = ["https://github.com/kubernetes/kubernetes", "https://github.com/kubernetes/website",
+                  "https://github.com/acme"]
+    assert find_github_org(page_links) == "acme"
+    assert find_github_org(page_links + ["https://github.com/vendor/sdk"] * 3, ["https://github.com/acme-eng"]) == "acme-eng"
+    assert find_github_org(["https://github.com/vendor/sdk"], ["https://acme.com/press"]) == "vendor"

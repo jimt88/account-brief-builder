@@ -65,8 +65,9 @@ NOT_ORGS = {"about", "apps", "collections", "contact", "customer-stories", "ente
             "settings", "site", "solutions", "sponsors", "topics", "trending"}
 
 
-def find_github_org(links: list[str]) -> str | None:
-    """The org most linked from the company's pages (or pasted links), or None."""
+def org_votes(links: list[str]) -> Counter:
+    """Org name -> weight. A link to the org itself (github.com/acme) counts
+    PROFILE_LINK_WEIGHT times as much as a link to one repo (often a third party's)."""
     orgs = Counter()
     for link in links:
         url = urlparse(link if "://" in link else "https://" + link)
@@ -76,7 +77,17 @@ def find_github_org(links: list[str]) -> str | None:
         if parts[:1] == ["orgs"]:
             parts = parts[1:]
         if parts and parts[0].lower() not in NOT_ORGS and re.fullmatch(r"[A-Za-z0-9-]{1,39}", parts[0]):
-            orgs[parts[0]] += 1
+            orgs[parts[0]] += PROFILE_LINK_WEIGHT if len(parts) == 1 else 1
+    return orgs
+
+
+PROFILE_LINK_WEIGHT = 3
+
+
+def find_github_org(links: list[str], preferred: list[str] | None = None) -> str | None:
+    """The org the rep pasted (preferred links) if any, else the org most linked from
+    the company's pages, or None. Never guessed from the company name."""
+    orgs = org_votes(preferred or []) or org_votes(links)
     return orgs.most_common(1)[0][0] if orgs else None
 
 
@@ -251,10 +262,11 @@ def list_repos(org: str, budget: Budget) -> list[dict]:
     return repos[:MAX_GITHUB_REPOS]
 
 
-def read_github(links: list[str]) -> tuple[list[Signal], list[Page], dict, str | None]:
+def read_github(links: list[str], preferred: list[str] | None = None) -> tuple[list[Signal], list[Page], dict, str | None]:
     """(verified dependency signals, manifest pages, github_summary, note). Makes no
-    request at all unless `links` contain a github.com/{org} link."""
-    org = find_github_org(links)
+    request at all unless the links contain a github.com/{org} link. `preferred` are
+    links the rep pasted: a GitHub org there wins over ones found on the pages."""
+    org = find_github_org(links, preferred)
     if org is None:
         return [], [], {}, None
     budget = Budget()
