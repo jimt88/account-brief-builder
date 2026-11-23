@@ -23,8 +23,15 @@ flowchart LR
     G1 --> V{Quote on the page<br/>word for word?}
     V -- no --> X[Dropped]
     V -- yes --> S[Score 0-100<br/>with breakdown]
-    S --> VS[(Hybrid story match: $rankFusion of<br/>Atlas Vector Search + Atlas Search<br/>industry filter on both)]
-    VS --> G2[Gemini: brief from<br/>verified evidence only]
+    S --> Q[Story query text]
+    Q --> AS[Atlas Search<br/>story_text_index<br/>keywords]
+    Q --> AV[Atlas Vector Search<br/>story_autoembed_index<br/>meaning]
+    VY[Voyage AI voyage-4<br/>auto-embedding run by Atlas] -.-> AV
+    AS --> RF[$rankFusion<br/>industry filter on both]
+    AV --> RF
+    ST[(adr_brief.stories<br/>48 customer stories<br/>search_text)] --> AS
+    ST --> AV
+    RF --> G2[Gemini: brief from<br/>verified evidence only]
     G2 --> C[Checks: numbers,<br/>vendors, lengths]
     C --> A[(adr_brief.accounts<br/>upsert + history)]
     A --> P[Pipeline page<br/>aggregation, status, CSV]
@@ -386,8 +393,9 @@ Before publishing, the repo was checked with [gitleaks](https://github.com/gitle
 
 ## MongoDB agent skills
 
-`docs/mongodb-skills/` is a copy of the `skills/` folder from
-[mongodb/agent-skills](https://github.com/mongodb/agent-skills) (Apache-2.0, commit `4946a8d`).
+The database code was written after reading MongoDB's agent skills,
+[github.com/mongodb/agent-skills](https://github.com/mongodb/agent-skills) (Apache-2.0,
+`skills/` folder at commit `4946a8d`). They are linked here rather than copied into the repo.
 
 Skills read before writing database code, and used in this project:
 
@@ -395,4 +403,9 @@ Skills read before writing database code, and used in this project:
 |---|---|
 | `mongodb-connection` | Client setup in `check_connection.py`: one client, default pool, short server-selection timeout. |
 | `mongodb-schema-design` (embed vs reference, document model, schema validation) | `adr_brief.stories`: one self-contained document per story (embedded outcomes, no joins), a `$jsonSchema` validator, and a unique index on `source_url`. |
-| `mongodb-search-and-ai` (vector search, automated embedding, hybrid search) The `story_autoembed_index` definition (`autoEmbed` + `filter`), the text-query `$vectorSearch` with `numCandidates` = 20× `limit`, the M0 3-queries-a-minute limit, and `$rankFusion` hybrid search. |
+| `mongodb-search-and-ai` (vector search, automated embedding, hybrid search) | The `story_autoembed_index` definition (`autoEmbed` + `filter`), the text-query `$vectorSearch` with `numCandidates` = 20× `limit`, the M0 3-queries-a-minute limit, and `$rankFusion` hybrid search. |
+| `mongodb-schema-design/references/pattern-document-versioning.md`, `mongodb-query-optimizer/references/update-query-examples.md` (Phase 1) | Account `history` capped at 5 versions with one aggregation-pipeline update (`$concatArrays`, `$slice`). |
+| `mongodb-schema-design/references/fundamental-schema-validation.md`, `mongodb-query-optimizer/references/core-indexing-principles.md` (Phase 2) | `adr_brief.page_cache`: unique `url` index, TTL index on `fetched_at` (24 h) and a `$jsonSchema` validator. |
+| `mongodb-query-optimizer/references/aggregation-optimization.md` (Phase 3) | The Pipeline dashboard's single `$facet` aggregation instead of several queries. |
+| `mongodb-search-and-ai/references/lexical-search-indexing.md`, `lexical-search-querying.md`, `hybrid-search.md` (Phase 4) | `story_text_index` (text fields + `industry_group` token), the `$search` compound query with an `equals` filter, and `$rankFusion` with equal weights. |
+| `mongodb-search-and-ai/references/automated-embedding.md` (Phase 5) | `story_autoembed_index` (`autoEmbed` on `search_text`, `voyage-4`), text-query `$vectorSearch`, the M0 rate limit and the switch-over from the old Gemini-vector index. |
