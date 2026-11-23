@@ -1,0 +1,38 @@
+{
+ "apiVersion": "1",
+ "jobs": [
+  {
+   "id": "34413f8d-26bf-4bbc-8ade-eb309a0e2245",
+   "title": " Software Engineer, Security, Cloud",
+   "department": "Engineering",
+   "team": "Backend",
+   "location": "New York, NY (HQ)",
+   "publishedAt": "2026-04-07T17:12:35.753+00:00",
+   "isListed": true,
+   "jobUrl": "https://jobs.ashbyhq.com/ramp/34413f8d-26bf-4bbc-8ade-eb309a0e2245",
+   "descriptionPlain": "ABOUT RAMP\n\nRamp is building the smart infrastructure for finance teams, embedded in the transaction flow of every dollar a business spends. We automate how over $275B in annualized spend flows in and out of 85,000+ companies: authorizing payments, flagging risk, categorizing spend, and closing books.\n\nThe problems are high-stakes, data-dense, and unforgiving.\n\nWe hire people with high agency and high urgency. We look for slope over intercept. We care less about where you trained and more about what you\u2019ve built. At Ramp, everyone is a builder who owns problems end to end and makes consequential decisions that shape the outcome.\n\nThe median Ramp customer saves 7.5% and grows revenue 16% in their first year \u2013 far in excess of businesses operating without Ramp. We believe every ambitious company deserves the same.\n\nIf you want to build systems that directly shape how companies move and manage billions, Ramp is the place to do it.\n\n\n\n\nABOUT THE ROLE\n\nThe Security Engineering team helps make Ramp the most secure place for our customers to collect, manage, and put to work their business\u2019 financial information\u00a0\n\nOur work centers in three areas:\n\n - Ramp builds products with an eye for se"
+  },
+  {
+   "id": "f564dcf9-9390-4a3f-896f-8047a5086040",
+   "title": "Software Engineer, Android",
+   "department": "Engineering",
+   "team": "Mobile",
+   "location": "New York, NY (HQ)",
+   "publishedAt": "2025-07-31T21:58:34.674+00:00",
+   "isListed": true,
+   "jobUrl": "https://jobs.ashbyhq.com/ramp/f564dcf9-9390-4a3f-896f-8047a5086040",
+   "descriptionPlain": "ABOUT RAMP\n\nRamp is building the smart infrastructure for finance teams, embedded in the transaction flow of every dollar a business spends. We automate how over $275B in annualized spend flows in and out of 85,000+ companies: authorizing payments, flagging risk, categorizing spend, and closing books.\n\nThe problems are high-stakes, data-dense, and unforgiving.\n\nWe hire people with high agency and high urgency. We look for slope over intercept. We care less about where you trained and more about what you\u2019ve built. At Ramp, everyone is a builder who owns problems end to end and makes consequential decisions that shape the outcome.\n\nThe median Ramp customer saves 7.5% and grows revenue 16% in their first year \u2013 far in excess of businesses operating without Ramp. We believe every ambitious company deserves the same.\n\nIf you want to build systems that directly shape how companies move and manage billions, Ramp is the place to do it.\n\n\n\n\nABOUT THE ROLE\n\nAs an Android Engineer at Ramp, you\u2019ll enhance our successful and rapidly growing mobile app. You will improve the core platform that thousands of businesses rely on while also building the future of automated finance by integrating AI an"
+  },
+  {
+   "id": "707d5f91-bcf7-42b2-a0e6-8130bf13e56b",
+   "title": "Account Executive | Strategic ",
+   "department": "Sales",
+   "team": "Account Executive",
+   "location": "San Francisco, CA",
+   "publishedAt": "2026-08-11T17:13:52.073+00:00",
+   "isListed": true,
+   "jobUrl": "https://jobs.ashbyhq.com/ramp/707d5f91-bcf7-42b2-a0e6-8130bf13e56b",
+   "descriptionPlain": "ABOUT RAMP\n\nRamp is building the smart infrastructure for finance teams, embedded in the transaction flow of every dollar a business spends. We automate how over $275B in annualized spend flows in and out of 85,000+ companies: authorizing payments, flagging risk, categorizing spend, and closing books.\n\nThe problems are high-stakes, data-dense, and unforgiving.\n\nWe hire people with high agency and high urgency. We look for slope over intercept. We care less about where you trained and more about what you\u2019ve built. At Ramp, everyone is a builder who owns problems end to end and makes consequential decisions that shape the outcome.\n\nThe median Ramp customer saves 7.5% and grows revenue 16% in their first year \u2013 far in excess of businesses operating without Ramp. We believe every ambitious company deserves the same.\n\nIf you want to build systems that directly shape how companies move and manage billions, Ramp is the place to do it.\n\n\n\n\nABOUT THE ROLE\n\nAs a member of Ramp\u2019s Strategic Account Executive team, you\u2019ll work closely with our Head of Strategic Sales and senior leaders to drive net-new revenue and expand Ramp\u2019s presence within the Fortune 1000. This is a new logo acquisition ro"
+  }
+ ]
+}

@@ -181,3 +181,49 @@ def test_refreshing_home_as_extra_link_drops_its_old_links():
         cache.docs["https://example.com"]["fetched_at"] -= website.timedelta(seconds=website.CACHE_SECONDS + 1)
         read_extra_pages(["https://example.com"], cache=cache)
     assert "links" not in cache.docs["https://example.com"]
+
+
+def test_mongodb_in_use_needs_mongodb_in_the_quote():
+    job = Page(url="https://jobs.lever.co/acme/1", title="Engineer", source_type="job",
+               text="You will run MongoDB Atlas clusters in production. You will mentor engineers on our team.")
+    kept = verify_signals([
+        Signal(type=SignalType.MONGODB_IN_USE, quote="You will run MongoDB Atlas clusters in production.",
+               source_url=job.url, technology="MongoDB"),
+        Signal(type=SignalType.MONGODB_IN_USE, quote="You will mentor engineers on our team.", source_url=job.url),
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.",
+               source_url=job.url, technology="Oracle"),
+    ], [job])
+    assert [(s.type, s.technology) for s in kept] == [(SignalType.MONGODB_IN_USE, "MongoDB")]
+
+
+def test_competitor_database_quote_must_name_a_database():
+    job = Page(url="https://jobs.lever.co/acme/1", title="Engineer", source_type="job",
+               text="Our ledger runs on Oracle and PostgreSQL today. You will mentor engineers on our team.")
+    kept = verify_signals([
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="Our ledger runs on Oracle and PostgreSQL today.",
+               source_url=job.url, technology="Oracle"),
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.", source_url=job.url),
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.", source_url=job.url,
+               technology="Oracle"),
+    ], [job])
+    assert [s.technology for s in kept] == ["Oracle"]
+    other = Page(url="https://acme.com", title="Acme", text="Orders are stored in Vitess across three regions.")
+    assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=other.text, source_url=other.url,
+                                  technology="Vitess")], [other])[0].technology == "Vitess"
+    stream = Page(url="https://acme.com/s", title="Acme", text="Every payment flows through Kafka and MongoDB Atlas.")
+    assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=stream.text, source_url=stream.url,
+                                  technology=tech) for tech in ("Kafka", "MongoDB")], [stream]) == []
+    cosmos = Page(url="https://acme.com/j", title="Job", text="You will run Azure Cosmos DB for MongoDB in production.")
+    assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=cosmos.text, source_url=cosmos.url,
+                                  technology="Azure Cosmos DB for MongoDB")], [cosmos])
+
+
+def test_pages_are_labelled_with_source_and_date():
+    from datetime import datetime, timezone
+    from brief.signals import format_pages
+    job = Page(url="https://jobs.lever.co/acme/1", title="Engineer", text="x" * 100_000, source_type="job",
+               published_at=datetime(2026, 11, 1, tzinfo=timezone.utc))
+    text = format_pages([PAGE, job])
+    assert "=== JOB (2026-11-01): https://jobs.lever.co/acme/1 ===" in text
+    assert "=== WEBSITE: https://example.com/about ===" in text
+    assert len(text) < 40_000  # Long pages are cut to a fair share.

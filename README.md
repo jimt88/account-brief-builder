@@ -281,13 +281,25 @@ python scripts/extract_signals.py "Ocado Group" ocadogroup.com
    timeout per page. It respects `robots.txt`, never logs in, skips login/paywalled
    pages and other sites (e.g. LinkedIn), and gives a friendly note for any page it
    couldn't read.
-2. Gemini returns JSON: what_they_do, industry, industry_group, hq_country (only if
-   the pages state it, otherwise empty) and up to 6 signals `{type, quote, source_url}`.
-   Types: ai_initiative, hiring_engineers, legacy_database, modernisation,
-   scale_or_real_time, new_market_or_product, other.
-3. Every quote is checked word for word against the page text (ignoring case, spacing
-   and curly quotes); signals whose quote isn't really there are dropped.
-4. The company's "situation" is matched to the closest MongoDB story (hybrid search).
+2. **Job ads** (`brief/jobs.py`): if a page we read (or a pasted extra link) links to a
+   public job board, the app reads that board's public feed: Greenhouse, Lever, Ashby,
+   SmartRecruiters, Personio or Workable. It never guesses a board from the company
+   name. It keeps the 25 newest technical roles (engineer, data, platform, cloud,
+   database, AI, ...) as extra pages with the posting date, and cites the public
+   posting page, not the API. Emails and phone numbers are removed before anything is
+   stored. Workday, SuccessFactors and Taleo have no simple public feed, so the app only
+   suggests pasting a job ad in Extra links. The board summary (platform, open roles,
+   technical roles) is saved on the account as `jobs`, and the feed is cached for 24 hours
+   in `page_cache` like any other page.
+3. Gemini returns JSON: what_they_do, industry, industry_group, hq_country (only if
+   the pages state it, otherwise empty) and up to 6 signals `{type, quote, source_url,
+   technology}`. Types: ai_initiative, hiring_engineers, legacy_database,
+   competitor_database, mongodb_in_use, modernisation, scale_or_real_time,
+   new_market_or_product, other. Pages are labelled WEBSITE, EXTRA_LINK or JOB (with
+   the date), and job ads are treated as the strongest evidence of the stack in use.
+4. Every quote is checked word for word against the full page text (ignoring case,
+   spacing and curly quotes); signals whose quote isn't really there are dropped.
+5. The company's "situation" is matched to the closest MongoDB story (hybrid search).
 
 Add `--json` to get the raw result. Shared code lives in `brief/` (`website.py`,
 `signals.py`, `story_search.py`) so the Streamlit app can reuse it.

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workzag-jobs>
+<position>
+    <id>2885178</id>
+    <office>Berlin</office>
+    <department>Go to Market</department>
+    <name>Business Development Representative (d/f/m)</name>
+    <jobDescriptions>
+        <jobDescription>
+            <name>The Role</name>
+            <value><![CDATA[<p>Prospect into strategic accounts via cold call and email.</p>]]></value>
+        </jobDescription>
+    </jobDescriptions>
+    <createdAt>2026-11-11T17:43:42+00:00</createdAt>
+</position>
+<position>
+    <id>2884401</id>
+    <office>Munich</office>
+    <department>Product and Tech</department>
+    <name>Senior Backend Engineer (d/f/m)</name>
+    <jobDescriptions>
+        <jobDescription>
+            <name>The Role</name>
+            <value><![CDATA[<p>You will help us migrate core services from PostgreSQL to an event-driven platform built on Kafka.</p><p>Questions? Write to jane.doe@personio.de or call +49 89 1250 1004.</p>]]></value>
+        </jobDescription>
+    </jobDescriptions>
+    <createdAt>2026-11-20T09:00:00+00:00</createdAt>
+</position>
+</workzag-jobs>

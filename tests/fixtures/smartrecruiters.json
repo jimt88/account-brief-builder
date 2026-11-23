@@ -1,0 +1,60 @@
+{
+ "offset": 0,
+ "limit": 2,
+ "totalFound": 2,
+ "content": [
+  {
+   "id": "744000163299524",
+   "name": "Senior Data Platform Engineer",
+   "releasedDate": "2026-11-23T18:47:18.116Z",
+   "department": {
+    "id": "2294208",
+    "label": "Sales"
+   },
+   "function": {
+    "id": "sales",
+    "label": "Sales"
+   },
+   "location": {
+    "city": "Amsterdam",
+    "country": "nl",
+    "address": "Hoekenrode 3 Hoekenrode 3",
+    "postalCode": "1102 BR",
+    "remote": false,
+    "hybrid": false,
+    "fullLocation": "Amsterdam, , Netherlands"
+   },
+   "company": {
+    "identifier": "ServiceNow",
+    "name": "ServiceNow"
+   }
+  },
+  {
+   "id": "744000163277419",
+   "name": "Sr Advisory Solution Consultant \u2013 Cyber Security & Risk",
+   "releasedDate": "2026-11-23T16:51:22.748Z",
+   "department": {
+    "id": "2294208",
+    "label": "Sales"
+   },
+   "function": {
+    "id": "consulting",
+    "label": "Consulting"
+   },
+   "location": {
+    "city": "Denver",
+    "region": "Colorado",
+    "country": "us",
+    "address": "Remote",
+    "postalCode": "80202",
+    "remote": true,
+    "hybrid": false,
+    "fullLocation": "Denver, Colorado, United States"
+   },
+   "company": {
+    "identifier": "ServiceNow",
+    "name": "ServiceNow"
+   }
+  }
+ ]
+}

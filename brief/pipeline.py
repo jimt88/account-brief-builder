@@ -14,6 +14,7 @@ from brief.build import (ACCOUNTS_COLLECTION, SalesBrief, check_brief, match_sto
                          score_account, write_brief)
 from brief.signals import CompanyProfile, extract_signals
 from brief.story_search import COLLECTION_NAME
+from brief.jobs import read_jobs, summary_line
 from brief.website import PAGE_CACHE_COLLECTION, read_extra_pages, read_website
 
 
@@ -29,6 +30,7 @@ class BriefResult:
     warnings: list[str]
     pages_read: list[str]
     signals_dropped: int = 0
+    jobs: dict = field(default_factory=dict)  # jobs_summary: platform, board_url, total_open, ...
     links_skipped: list[str] = field(default_factory=list)
     score: int = 0
     score_breakdown: list[dict] = field(default_factory=list)
@@ -56,12 +58,23 @@ def build_brief(
         pages, site_problem = [], str(exc)
 
     # Extra links the user pasted (e.g. a press release) help when the site is thin.
-    extra_pages, skipped = read_extra_pages(extra_urls or [], cache=cache)
+    thin_links = []
+    extra_pages, skipped = read_extra_pages(extra_urls or [], cache=cache, links_out=thin_links)
     seen = {p.url for p in pages}
     pages += [p for p in extra_pages if p.url not in seen]
     skipped = notes + [f"Skipped {reason}" for reason in skipped]
     for page in pages:
         progress(f"Read {page.url}" + (" (cached)" if page.cached else ""))
+
+    # Job ads, if the careers page (or a pasted link) points to a public job board.
+    links = [link for page in pages for link in page.found_links] + thin_links + list(extra_urls or [])
+    job_pages, jobs, job_note = read_jobs(links, cache=cache)
+    if jobs:
+        progress(summary_line(jobs) + (" (cached)" if job_pages and job_pages[0].cached else ""))
+    if job_note:
+        skipped.append(job_note)
+    job_urls = {p.url for p in job_pages}  # A feed posting beats the same posting read as a web page.
+    pages = [p for p in pages if p.url not in job_urls] + job_pages
     for note in skipped:
         progress(note)
 
@@ -94,7 +107,7 @@ def build_brief(
     progress("5/5 Saving the account ...")
     pages_read = [p.url for p in pages]
     account = save_account(db[ACCOUNTS_COLLECTION], website, profile, score, breakdown,
-                           story, brief, warnings, pages_read)
+                           story, brief, warnings, pages_read, jobs=jobs)
     return BriefResult(
         profile=profile,
         story=story,
@@ -102,6 +115,7 @@ def build_brief(
         warnings=warnings,
         pages_read=pages_read,
         signals_dropped=dropped,
+        jobs=jobs,
         links_skipped=skipped,
         score=score,
         score_breakdown=breakdown,
