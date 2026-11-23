@@ -1,6 +1,6 @@
 # Account Brief Builder
 
-**Live demo:** <add Streamlit URL> · **2-min video:** <add link>
+**Live demo:** [Open the app](https://account-brief-builder-6ew3n54z87pivk6jevk5b8.streamlit.app/) (passcode protected; ask me for access)
 
 Type a company and its website; get a call-ready sales brief in about a minute, where
 every claim is backed by a word-for-word quote from a public page and a matching MongoDB
