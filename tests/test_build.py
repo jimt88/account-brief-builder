@@ -3,7 +3,9 @@
 Run from the project folder:  python -m pytest -q
 """
 
-from brief.build import Email, Persona, SalesBrief, check_brief, domain_of, score_account
+from brief.accounts import PIPELINE
+from brief.build import (MAX_HISTORY, Email, Persona, SalesBrief, check_brief, domain_of,
+                         save_account, score_account)
 from brief.industries import IndustryGroup
 from brief.signals import CompanyProfile, Signal, SignalType as T
 
@@ -109,3 +111,40 @@ def test_all_african_countries_count_as_emea():
 def test_csv_cells_cannot_become_formulas():
     from brief.accounts import safe_cell
     assert safe_cell("=HYPERLINK(1)") == "'=HYPERLINK(1)" and safe_cell("Acme") == "Acme"
+
+
+class RecordingAccounts:
+    """Stands in for the accounts collection and remembers the update it was sent."""
+
+    def update_one(self, query, update, upsert=False):
+        self.query, self.update, self.upsert = query, update, upsert
+
+    def find_one(self, query):
+        return {}
+
+
+def test_save_is_one_pipeline_update_that_caps_history():
+    accounts = RecordingAccounts()
+    brief = SalesBrief(why_now=[], personas=[], value_hook="h", cold_call_opener="o",
+                       email=Email(subject="s", body="b"), discovery_questions=[],
+                       matched_story_why="w", signals_used=[])
+    story = {"company": "Acme", "source_url": "https://x", "summary": "s", "score": 0.8}
+    save_account(accounts, "https://example.com", profile([T.AI_INITIATIVE]), 35, [], story, brief, [], [])
+    assert accounts.query == {"domain": "example.com"} and accounts.upsert
+    assert isinstance(accounts.update, list)  # a pipeline update, so it stays atomic
+    history = accounts.update[0]["$set"]["history"]
+    assert history["$slice"][1] == -MAX_HISTORY == -5
+    assert "$concatArrays" in str(history["$slice"][0])
+
+
+def test_breakdown_lines_name_their_signal_type():
+    _, breakdown = score_account(profile([T.MODERNISATION, T.AI_INITIATIVE]))
+    assert [line["type"] for line in breakdown] == ["ai_initiative", "modernisation", "emea_hq"]
+
+
+def test_top_quote_follows_the_top_signal_type():
+    top_quote = PIPELINE[-1]["$project"]["top_quote"]["$let"]
+    cond = top_quote["vars"]["matching"]["$filter"]["cond"]
+    assert cond == {"$eq": ["$$this.type", {"$first": "$score_breakdown.type"}]}
+    # Falls back to the first quote, then to "".
+    assert top_quote["in"]["$ifNull"][1:] == [{"$first": "$signals.quote"}, ""]

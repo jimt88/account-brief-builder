@@ -25,6 +25,7 @@ from brief.signals import CompanyProfile, SignalType, story_query_text
 from brief.story_search import find_similar_stories
 
 ACCOUNTS_COLLECTION = "accounts"
+MAX_HISTORY = 5  # earlier versions kept per account; older ones are dropped
 
 # ---- 1. Score ---------------------------------------------------------------
 
@@ -73,12 +74,13 @@ def score_account(profile: CompanyProfile) -> tuple[int, list[dict]]:
         quotes = [s for s in profile.signals if s.type == signal_type]
         if quotes:
             breakdown.append({
+                "type": signal_type.value,
                 "reason": f"{quotes[0].label} signal",
                 "points": points,
                 "evidence": quotes[0].source_url,
             })
     if profile.hq_country.strip().lower() in EMEA_COUNTRIES:
-        breakdown.append({"reason": f"HQ in EMEA ({profile.hq_country})", "points": EMEA_POINTS, "evidence": ""})
+        breakdown.append({"type": "emea_hq", "reason": f"HQ in EMEA ({profile.hq_country})", "points": EMEA_POINTS, "evidence": ""})
     return min(MAX_SCORE, sum(line["points"] for line in breakdown)), breakdown
 
 
@@ -276,7 +278,8 @@ def domain_of(website: str) -> str:
 def save_account(accounts, website: str, profile: CompanyProfile, score: int, breakdown: list[dict],
                  story: dict, brief: SalesBrief, warnings: list[str], pages_read: list[str]) -> dict:
     """Upsert one document per company, keyed by domain. On a re-run the previous
-    brief and score are appended to history[] and the status is kept.
+    brief and score are appended to history[] (only the last MAX_HISTORY are kept)
+    and the status is kept.
 
     This is one atomic update (an aggregation-pipeline update): the history entry is
     built from the document being replaced, inside the same write, so two people
@@ -308,10 +311,14 @@ def save_account(accounts, website: str, profile: CompanyProfile, score: int, br
             "domain": domain,
             "status": {"$ifNull": ["$status", "New"]},
             "created_at": {"$ifNull": ["$created_at", now]},
-            "history": {"$cond": [
-                {"$ifNull": ["$brief", False]},
-                {"$concatArrays": [{"$ifNull": ["$history", []]}, [previous_version]]},
-                {"$ifNull": ["$history", []]},
+            # Append the old version, then keep only the newest MAX_HISTORY entries.
+            "history": {"$slice": [
+                {"$cond": [
+                    {"$ifNull": ["$brief", False]},
+                    {"$concatArrays": [{"$ifNull": ["$history", []]}, [previous_version]]},
+                    {"$ifNull": ["$history", []]},
+                ]},
+                -MAX_HISTORY,
             ]},
         }},
         # Stage 2 writes the new brief. $literal stops text like "$5m" being read as a field.

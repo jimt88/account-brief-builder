@@ -1,9 +1,14 @@
 # Account Brief Builder
 
+**Live demo:** <add Streamlit URL> · **2-min video:** <add link>
+
 Type a company and its website; get a call-ready sales brief in about a minute, where
 every claim is backed by a word-for-word quote from a public page and a matching MongoDB
 customer story found with **Atlas Vector Search**. Accounts are scored, saved and ranked
 in MongoDB, so it works as a small prospecting pipeline for an ADR.
+
+It's built on MongoDB Atlas because the operational data and the vectors live in one
+database, so there is no separate vector store to keep in sync.
 
 ![Brief page](docs/img/brief.png)
 
@@ -34,10 +39,10 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 | **Atlas M0 (free)** | `adr_brief` database | Fully managed; free to start |
 | **Document model** | One document per account (signals, score breakdown, brief, matched story, history embedded) and per story (outcomes embedded) | Data read together is stored together: one read renders a whole brief, no joins |
 | **Atlas Vector Search + filter** | `story_vector_index` on `stories.embedding` (768 dims, cosine) with `industry_group` as a filter field | Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data (no separate vector DB) |
-| **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal) and `$vectorSearch` | Ranking and shaping happen on the server |
+| **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal and its quote with `$filter` + `$first`) and `$vectorSearch` | Ranking and shaping happen on the server |
 | **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, wrong embedding size) |
 | **Unique indexes** | `stories.source_url`, `accounts.domain` | Re-running never duplicates; plus a `score` index for the ranked view |
-| **Upsert + `$push`** | Saving an account | One write updates the brief and keeps the previous version in `history[]` |
+| **Atomic pipeline upsert** | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) writes the new brief and archives the old version inside the same write, keeping the last 5. Two concurrent rebuilds can't lose or duplicate a brief |
 | **PyMongo driver** | Everywhere | The supported way to connect (the Atlas Data API is end of life) |
 | **Least-privilege DB user** | Streamlit app | The app's user has `readWrite` on `adr_brief` only |
 
@@ -235,8 +240,8 @@ Runs everything above, then (code in `brief/build.py`):
    evidence, and any vendor name (Oracle, AWS, ...) that no quote from the company mentions.
 5. **Saved** as one document per company in `adr_brief.accounts`, keyed by domain:
    signals, score, score_breakdown, matched_story, brief, status ("New" on first run),
-   updated_at. Re-running pushes the previous brief and score onto `history[]` and
-   keeps the status. The collection has schema validation, a unique index on `domain`
+   updated_at. Re-running archives the previous brief and score in `history[]` (last 5 kept)
+   in the same atomic write, and keeps the status. The collection has schema validation, a unique index on `domain`
    and an index on `score` for the ranked pipeline.
 
 Extra links: put up to 3 public URLs after the website (a press release, careers page or
