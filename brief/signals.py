@@ -76,9 +76,11 @@ class CompanyProfile(BaseModel):
 
 
 PROMPT = """You are helping a MongoDB sales rep research {company}.
-Below are public pages about the company: its website, any extra links and its
-current job ads. Job ads are the strongest evidence of the technology a company
-really uses today; prefer them for database and stack signals. Using ONLY this text:
+Below are public pages about the company: its website, any extra links, its
+current job ads and recent news articles. Job ads are the strongest evidence of the
+technology a company really uses today; prefer them for database and stack signals. NEWS pages are
+recent events (launches, deals, results): quote the article text, not the headline,
+unless the headline also appears in the page text. Using ONLY this text:
 
 1. company, what_they_do (1-2 sentences), industry (a short label) and
    industry_group (the closest group from the allowed list).

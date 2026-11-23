@@ -291,15 +291,24 @@ python scripts/extract_signals.py "Ocado Group" ocadogroup.com
    suggests pasting a job ad in Extra links. The board summary (platform, open roles,
    technical roles) is saved on the account as `jobs`, and the feed is cached for 24 hours
    in `page_cache` like any other page.
-3. Gemini returns JSON: what_they_do, industry, industry_group, hq_country (only if
+3. **News** (`brief/news.py`): one call per brief to the free, keyless
+   [GDELT DOC 2.0 API](https://blog.gdeltproject.org/gdelt-doc-2-0-api-debuts/): the
+   exact company name, last 3 months, newest first. Only articles with the company's
+   name in the headline are kept, duplicates removed, at most 8 (English first). Each
+   article is opened with the same rules as the website (robots.txt, no logins or
+   paywalls) and labelled NEWS with its date. The search runs in the background while
+   the website is read. GDELT allows about one request every 5 seconds per IP; if it is
+   busy or slow (20 s timeout) the brief carries on without news and says so.
+4. Gemini returns JSON: what_they_do, industry, industry_group, hq_country (only if
    the pages state it, otherwise empty) and up to 6 signals `{type, quote, source_url,
    technology}`. Types: ai_initiative, hiring_engineers, legacy_database,
    competitor_database, mongodb_in_use, modernisation, scale_or_real_time,
-   new_market_or_product, other. Pages are labelled WEBSITE, EXTRA_LINK or JOB (with
-   the date), and job ads are treated as the strongest evidence of the stack in use.
-4. Every quote is checked word for word against the full page text (ignoring case,
+   new_market_or_product, other. Pages are labelled WEBSITE, EXTRA_LINK, JOB or NEWS
+   (with the date). Job ads are treated as the strongest evidence of the stack in use;
+   news as evidence of recent events.
+5. Every quote is checked word for word against the full page text (ignoring case,
    spacing and curly quotes); signals whose quote isn't really there are dropped.
-5. The company's "situation" is matched to the closest MongoDB story (hybrid search).
+6. The company's "situation" is matched to the closest MongoDB story (hybrid search).
 
 Add `--json` to get the raw result. Shared code lives in `brief/` (`website.py`,
 `signals.py`, `story_search.py`) so the Streamlit app can reuse it.

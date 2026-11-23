@@ -235,6 +235,9 @@ def show_brief(a: dict) -> None:
             j = a["jobs"]
             st.markdown(f":material/work: **Hiring:** [{j['platform']}]({j['board_url']}): "
                         f"{j['total_open']} open roles, {j['technical_open']} technical")
+        if a.get("news"):
+            st.markdown(f":material/newspaper: **News (last 3 months, GDELT):** {a['news']['articles_found']} "
+                        f"articles with the company in the headline, {a['news']['articles_read']} readable")
         st.subheader("Signals", anchor=False)
         st.caption("Every quote is word for word from the linked page.")
         for n, x in enumerate(a["signals"], start=1):
@@ -430,6 +433,8 @@ def page_how_it_works() -> None:
    **Job ads:** if the careers page links to a public job board (Greenhouse, Lever,
    Ashby, SmartRecruiters, Personio or Workable), the app reads its public feed and
    keeps the 25 newest technical roles, with dates. Emails and phone numbers are removed.
+   **News:** one search of GDELT's free news index (last 3 months, company name in the
+   headline, up to 8 articles); paywalled or login-only articles are skipped.
 2. **Find signals.** Gemini lists signals (AI initiative, hiring engineers, legacy
    database, competitor database, MongoDB already in use, modernisation, scale or
    real time, new market or product), each with a quote. Job ads count as the
