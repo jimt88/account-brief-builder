@@ -244,7 +244,13 @@ def show_brief(a: dict) -> None:
         with st.container(border=True):
             st.subheader(s["company"], anchor=False)
             how = f"Same industry: {s['industry_filter']}" if s.get("industry_filter") else "Closest in any industry"
-            st.markdown(badge(how, "green", ":material/filter_alt:") + " " + badge(f"similarity {s['score']:.2f}", "gray"))
+            badges = [badge(how, "green", ":material/filter_alt:"), badge(f"similarity {s['score']:.2f}", "gray")]
+            ranks = s.get("ranks") or {}
+            if s.get("match_mode") == "hybrid":
+                rank = lambda name: f"#{ranks[name]}" if ranks.get(name) else "not found"  # noqa: E731
+                badges.append(badge(f"hybrid: meaning {rank('vector')}, keywords {rank('text')}", "blue",
+                                    ":material/join:"))
+            st.markdown(" ".join(badges))
             st.markdown(md(s["summary"]))
             st.markdown(f"**Why this story:** {md(s['why'])}")
             st.link_button("Read the story on mongodb.com", s["url"], icon=":material/open_in_new:")
@@ -422,8 +428,10 @@ def page_how_it_works() -> None:
    quote. **Any quote that isn't word for word on the page is dropped.**
 3. **Score 0–100.** +25 AI initiative, +20 hiring engineers, +20 legacy database,
    +15 modernisation, +10 scale or real time, +10 HQ in EMEA. The breakdown is saved.
-4. **Match a customer story.** Atlas Vector Search finds the closest of 48 public
-   MongoDB customer stories, pre-filtered to the same industry.
+4. **Match a customer story.** Hybrid search finds the closest of 48 public MongoDB
+   customer stories, pre-filtered to the same industry: `$rankFusion` merges Atlas
+   Vector Search (meaning) with Atlas Search (keywords), so a story ranked high in both
+   wins. If the keyword index is missing it falls back to Vector Search only.
 5. **Write the brief.** Gemini writes it from the verified evidence only; automatic
    checks flag numbers or vendor names that aren't in the evidence.
 6. **Save the account** in MongoDB, ranked in the Pipeline.
@@ -439,6 +447,7 @@ def page_how_it_works() -> None:
 | Schema validation | `stories`, `accounts` | Flexible documents, but bad data (e.g. a score of 150) is rejected |
 | Unique indexes | `stories.source_url`, `accounts.domain` | Re-running never creates duplicates |
 | `$facet` aggregation | Pipeline dashboard | One aggregation returns the status counts, average score by industry, signal counts and totals, in one round trip |
+| Atlas Search + `$rankFusion` | Story match | Keyword search (`story_text_index`) and Vector Search ranked together with Reciprocal Rank Fusion, both filtered to the same industry, in one aggregation |
 | TTL index | `page_cache.fetched_at` | Cached pages are deleted by MongoDB about 24 hours after download (the TTL monitor runs about once a minute), so re-runs are fast and polite |
 | Atomic pipeline upsert | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) archives the old version inside the same write (last 5 kept), so two rebuilds at once can't lose or duplicate a brief |
 | PyMongo driver | Everywhere | The supported way to connect (no Data API) |

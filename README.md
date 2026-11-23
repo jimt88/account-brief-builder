@@ -8,7 +8,8 @@ customer story found with **Atlas Vector Search**. Accounts are scored, saved an
 in MongoDB, so it works as a small prospecting pipeline for an ADR.
 
 It's built on MongoDB Atlas because the operational data and the vectors live in one
-database, so there is no separate vector store to keep in sync.
+database, and so does full-text search (Atlas Search), so there is no separate vector
+store or search engine to keep in sync.
 
 ![Brief page](docs/img/brief.png)
 
@@ -22,7 +23,7 @@ flowchart LR
     G1 --> V{Quote on the page<br/>word for word?}
     V -- no --> X[Dropped]
     V -- yes --> S[Score 0-100<br/>with breakdown]
-    S --> VS[(Atlas Vector Search<br/>stories, industry filter)]
+    S --> VS[(Hybrid story match: $rankFusion of<br/>Atlas Vector Search + Atlas Search<br/>industry filter on both)]
     VS --> G2[Gemini: brief from<br/>verified evidence only]
     G2 --> C[Checks: numbers,<br/>vendors, lengths]
     C --> A[(adr_brief.accounts<br/>upsert + history)]
@@ -40,6 +41,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 |---|---|---|
 | **Atlas M0 (free)** | `adr_brief` database | Fully managed; free to start |
 | **Document model** | One document per account (signals, score breakdown, brief, matched story, history embedded) and per story (outcomes embedded) | Data read together is stored together: one read renders a whole brief, no joins |
+| **Atlas Search + `$rankFusion` (hybrid search)** | `story_text_index` on the story text fields (`industry_group` as `token`), fused with the vector search in `find_similar_stories_hybrid()` | Keyword matches (e.g. "parcels", "payments") and meaning are ranked together with Reciprocal Rank Fusion, both pre-filtered to the industry. Default `STORY_MATCH_MODE=hybrid`; falls back to vector-only if the keyword index is missing. Needs MongoDB 8.0+ |
 | **Atlas Vector Search + filter** | `story_vector_index` on `stories.embedding` (768 dims, cosine) with `industry_group` as a filter field | Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data (no separate vector DB) |
 | **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal and its quote with `$filter` + `$first`) and `$vectorSearch` | Ranking and shaping happen on the server |
 | **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, wrong embedding size) |
@@ -56,7 +58,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
   Gemini calls plus 1 embedding; the app retries on "busy" errors (429/503) with
   increasing waits. If the daily cap is hit, try again later.
 - **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts.
-  Up to 3 search/vector indexes on M0; this app uses 1.
+  Up to 3 search/vector indexes on M0; this app uses 2 (`story_vector_index`, `story_text_index`).
 - **Streamlit Community Cloud:** the app sleeps after a period without visitors;
   the first load after that takes about 30 seconds.
 - **Websites:** some sites block automated readers (e.g. openai.com returns 403) or only
@@ -305,7 +307,8 @@ phone-friendly:
 
 One-time database setup (run locally with an admin connection string):
 `scripts/build_story_library.py`, `scripts/tag_story_industries.py`,
-`scripts/create_vector_index.py`, `scripts/setup_accounts.py`, `scripts/setup_page_cache.py`.
+`scripts/create_vector_index.py`, `scripts/create_search_index.py`, `scripts/setup_accounts.py`,
+`scripts/setup_page_cache.py`.
 
 Before publishing, the repo was checked with [gitleaks](https://github.com/gitleaks/gitleaks)
 (`gitleaks git .` and `gitleaks dir .`): no leaks found.

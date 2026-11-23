@@ -6,7 +6,8 @@ For each query we check that:
   - the expected company is among the results.
 Pauses between queries to stay inside the Gemini free-tier rate limit.
 
-Run from the project folder:  python scripts/test_story_search.py
+Run from the project folder:  python scripts/test_story_search.py [--mode vector|hybrid]
+In hybrid mode results are ordered by fusion score, so that is what's checked.
 """
 
 import os
@@ -19,7 +20,7 @@ from google import genai
 from pymongo import MongoClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from brief.story_search import COLLECTION_NAME, DB_NAME, find_similar_stories  # noqa: E402
+from brief.story_search import COLLECTION_NAME, DB_NAME, find_similar_stories, find_similar_stories_hybrid  # noqa: E402
 
 PAUSE_SECONDS = 4
 
@@ -34,6 +35,10 @@ QUERIES = [
 
 
 def main() -> int:
+    mode = sys.argv[sys.argv.index("--mode") + 1] if "--mode" in sys.argv else "vector"
+    search = find_similar_stories_hybrid if mode == "hybrid" else find_similar_stories
+    order_by = "fusion_score" if mode == "hybrid" else "score"
+    print(f"Mode: {mode}")
     load_dotenv()
     mongo = MongoClient(os.environ["MONGODB_URI"], serverSelectionTimeoutMS=10_000, appname="account-brief")
     gemini = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -41,13 +46,13 @@ def main() -> int:
     failures = 0
 
     for query, industry, expected in QUERIES:
-        results = find_similar_stories(stories, gemini, query, k=2, industry=industry)
+        results = search(stories, gemini, query, k=2, industry=industry)
         problems = []
         if len(results) != 2:
             problems.append(f"expected 2 results, got {len(results)}")
         if any(not all(r.get(f) for f in ("company", "url", "summary", "score")) for r in results):
             problems.append("a result is missing company/url/summary/score")
-        if [r["score"] for r in results] != sorted((r["score"] for r in results), reverse=True):
+        if [r[order_by] for r in results] != sorted((r[order_by] for r in results), reverse=True):
             problems.append("results are not sorted best first")
         if industry and any(r["industry_group"] != industry for r in results):
             problems.append(f"a result is outside the {industry} filter")

@@ -4,12 +4,15 @@ Everything here works only from verified evidence: the company profile and the
 signals whose quotes were found word for word on a public page.
 
   score_account()  transparent 0-100 score with a stored breakdown
-  match_story()    closest MongoDB story (same industry first, via Vector Search)
+  match_story()    closest MongoDB story (same industry first; hybrid $rankFusion of
+                   Vector Search + Atlas Search, or Vector Search only)
   write_brief()    Gemini writes the brief from the evidence only
   check_brief()    warns about anything that breaks the rules
   save_account()   one document per company in adr_brief.accounts, with history
 """
 
+import logging
+import os
 import re
 from datetime import datetime, timezone
 from urllib.parse import urlparse
@@ -22,10 +25,13 @@ from pymongo.errors import DuplicateKeyError
 from brief.gemini_utils import TEXT_MODEL, call_with_retry, normalise, parsed_or_raise
 from brief.industries import IndustryGroup
 from brief.signals import CompanyProfile, SignalType, story_query_text
-from brief.story_search import find_similar_stories
+from brief.story_search import find_similar_stories, find_similar_stories_hybrid
 
 ACCOUNTS_COLLECTION = "accounts"
 MAX_HISTORY = 5  # earlier versions kept per account; older ones are dropped
+# "hybrid" ($rankFusion of meaning + keywords) or "vector" (meaning only).
+STORY_MATCH_MODE = os.getenv("STORY_MATCH_MODE", "hybrid")
+log = logging.getLogger(__name__)
 
 # ---- 1. Score ---------------------------------------------------------------
 
@@ -86,16 +92,35 @@ def score_account(profile: CompanyProfile) -> tuple[int, list[dict]]:
 
 # ---- 2. Match a story -------------------------------------------------------
 
-def match_story(collection, gemini: genai.Client, profile: CompanyProfile) -> dict | None:
-    """Closest story in the same industry group; any industry if there's none."""
+def search_stories(collection, gemini: genai.Client, query: str, industry: str | None, mode: str) -> list[dict]:
+    """The best story for query. Hybrid falls back to vector-only if it fails (for
+    example story_text_index is missing), so the demo never breaks."""
+    if mode == "hybrid":
+        try:
+            stories = find_similar_stories_hybrid(collection, gemini, query, k=1, industry=industry)
+            for story in stories:
+                story["match_mode"] = "hybrid"
+            return stories
+        except Exception as exc:  # noqa: BLE001 - any search failure: use vector-only instead.
+            log.warning("Hybrid story search failed, using vector-only: %s", exc)
+    stories = find_similar_stories(collection, gemini, query, k=1, industry=industry)
+    for story in stories:
+        story["match_mode"] = "vector"
+    return stories
+
+
+def match_story(collection, gemini: genai.Client, profile: CompanyProfile, mode: str | None = None) -> dict | None:
+    """Closest story in the same industry group; any industry if there's none.
+    mode is "hybrid" or "vector" (default STORY_MATCH_MODE)."""
+    mode = mode or STORY_MATCH_MODE
     query = story_query_text(profile)
     stories = []
     if profile.industry_group != IndustryGroup.OTHER:
-        stories = find_similar_stories(collection, gemini, query, k=1, industry=profile.industry_group.value)
+        stories = search_stories(collection, gemini, query, profile.industry_group.value, mode)
     if stories:
         stories[0]["industry_filter"] = profile.industry_group.value
     else:
-        stories = find_similar_stories(collection, gemini, query, k=1)
+        stories = search_stories(collection, gemini, query, None, mode)
         if stories:
             stories[0]["industry_filter"] = None
     return stories[0] if stories else None
@@ -296,6 +321,7 @@ def save_account(accounts, website: str, profile: CompanyProfile, score: int, br
         "matched_story": {
             "company": story["company"], "url": story["source_url"], "summary": story["summary"],
             "score": story["score"], "industry_filter": story.get("industry_filter"),
+            "match_mode": story.get("match_mode", "vector"), "ranks": story.get("ranks"),
             "why": brief.matched_story_why,
         },
         "brief": brief.model_dump(mode="json"),
