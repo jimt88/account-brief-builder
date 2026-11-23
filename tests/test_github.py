@@ -153,3 +153,9 @@ def test_commented_and_metadata_entries_are_not_dependencies():
     assert dependency_signals("pom.xml", pom, "https://github.com/a/b/blob/main/f", None) == []
     assert dependency_signals("build.gradle", gradle, "https://github.com/a/b/blob/main/f", None) == []
     assert {s.technology for s in dependency_signals("pyproject.toml", toml, "https://github.com/a/b/blob/main/f", None)} == {"MongoDB", "AI/LLM"}
+
+
+def test_go_major_versions_and_type_packages():
+    assert technology_of("go.mongodb.org/mongo-driver/v2") == "MongoDB"
+    assert technology_of("github.com/redis/go-redis/v9") == "Redis"
+    assert technology_of("@types/mongodb") is None and technology_of("@types/pg") is None

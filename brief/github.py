@@ -86,7 +86,9 @@ def library_key(name: str) -> str:
 
 def technology_of(name: str, file_text: str = "") -> str | None:
     """Map a dependency name to a technology, or None."""
-    name = library_key(name)
+    name = re.sub(r"/v\d+$", "", library_key(name))  # Go major versions: mongo-driver/v2.
+    if name.startswith("@types/"):  # Type definitions only, not the library itself.
+        return None
     if name == "boto3":
         return "DynamoDB" if BOTO3_NEEDS in file_text.lower() else None
     candidates = {name, name.split("/")[-1]} if not name.startswith("github.com/") else {name}
