@@ -16,13 +16,12 @@ import time
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
 from pymongo import MongoClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from brief.story_search import COLLECTION_NAME, DB_NAME, find_similar_stories, find_similar_stories_hybrid  # noqa: E402
 
-PAUSE_SECONDS = 4
+PAUSE_SECONDS = 21  # Atlas embeds each query: about 3 a minute on free M0.
 
 # (query, industry filter or None, a company we expect in the top 2)
 QUERIES = [
@@ -41,12 +40,11 @@ def main() -> int:
     print(f"Mode: {mode}")
     load_dotenv()
     mongo = MongoClient(os.environ["MONGODB_URI"], serverSelectionTimeoutMS=10_000, appname="account-brief")
-    gemini = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     stories = mongo[DB_NAME][COLLECTION_NAME]
     failures = 0
 
     for query, industry, expected in QUERIES:
-        results = search(stories, gemini, query, k=2, industry=industry)
+        results = search(stories, query, k=2, industry=industry)
         problems = []
         if len(results) != 2:
             problems.append(f"expected 2 results, got {len(results)}")
