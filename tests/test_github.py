@@ -159,3 +159,9 @@ def test_go_major_versions_and_type_packages():
     assert technology_of("go.mongodb.org/mongo-driver/v2") == "MongoDB"
     assert technology_of("github.com/redis/go-redis/v9") == "Redis"
     assert technology_of("@types/mongodb") is None and technology_of("@types/pg") is None
+
+
+def test_one_line_package_json_still_quotes_each_dependency():
+    text = '{"name":"app","dependencies":{"express":"^4","mongodb":"^6.3.0","ioredis":"^5"}}'
+    signals = dependency_signals("package.json", text, "https://github.com/a/b/blob/main/package.json", None)
+    assert {s.technology: s.quote for s in signals} == {"MongoDB": '"mongodb":"^6.3.0"', "Redis": '"ioredis":"^5"'}

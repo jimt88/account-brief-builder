@@ -156,11 +156,11 @@ def dependency_lines(filename: str, text: str) -> list[tuple[str, str]]:
             return []
         sections = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies",
                     "require", "require-dev"]
-        names = {name for section in sections for name in (data.get(section) or {})}
-        for line in lines:
-            match = re.match(r'\s*"([^"]+)"\s*:', line)
-            if match and match.group(1) in names:
-                found.append((match.group(1), line))
+        names = dict.fromkeys(name for section in sections for name in (data.get(section) or {}))
+        for name in names:  # Quote the exact '"name": "version"' text: works on one-line files too.
+            match = re.search(rf'"{re.escape(name)}"\s*:\s*"[^"]*"', text)
+            if match:
+                found.append((name, match.group(0)))
     elif filename == "requirements.txt":
         for line in lines:
             match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._\-\[\]]*)", line)
