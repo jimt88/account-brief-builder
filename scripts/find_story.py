@@ -1,9 +1,9 @@
 """Find the MongoDB customer stories most similar to a short description.
 
 How it works:
-  1. turn the description into an embedding with gemini-embedding-001
-     (same model and 768 dimensions as the stored stories),
-  2. ask Atlas Vector Search ($vectorSearch) for the closest story embeddings,
+  1. send the description as text to Atlas Vector Search ($vectorSearch); Atlas
+     embeds it with Voyage AI (automated embedding, same model as the stories),
+  2. Atlas returns the closest stories,
   3. print each match with its similarity score (0 to 1, higher = closer).
 
 Run from the project folder, for example:
@@ -11,7 +11,7 @@ Run from the project folder, for example:
   python scripts/find_story.py --industry "Retail & Consumer" "slow product catalogue"
   python scripts/find_story.py --mode hybrid "parcel tracking in real time"
 (--mode vector = Vector Search only, the default here; hybrid = $rankFusion with Atlas Search.)
-Needs MONGODB_URI and GEMINI_API_KEY in the environment or in .env.
+Needs MONGODB_URI in the environment or in .env.
 
 The search itself lives in brief/story_search.py so the app can reuse it.
 """
@@ -21,7 +21,6 @@ import sys
 from pathlib import Path
 
 from dotenv import load_dotenv
-from google import genai
 from pymongo import MongoClient
 
 # Let this script import the shared code in the brief/ folder.
@@ -45,20 +44,18 @@ def main() -> int:
 
     load_dotenv()
     mongo_uri = os.getenv("MONGODB_URI")
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if not mongo_uri or not gemini_key:
-        print("ERROR: MONGODB_URI and GEMINI_API_KEY must be set (add them to .env).")
+    if not mongo_uri:
+        print("ERROR: MONGODB_URI must be set (add it to .env).")
         return 1
 
     mongo = None
     try:
         mongo = MongoClient(mongo_uri, serverSelectionTimeoutMS=10_000, appname="account-brief")
-        gemini = genai.Client(api_key=gemini_key)
         search = find_similar_stories_hybrid if mode == "hybrid" else find_similar_stories
-        stories = search(mongo[DB_NAME][COLLECTION_NAME], gemini, description, k=3, industry=industry)
+        stories = search(mongo[DB_NAME][COLLECTION_NAME], description, k=3, industry=industry)
 
         if not stories:
-            print("No matches. Has scripts/create_vector_index.py been run?")
+            print("No matches. Has scripts/create_autoembed_index.py been run?")
             return 1
 
         print(f'Closest stories to: "{description}"\n')

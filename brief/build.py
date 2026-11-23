@@ -25,7 +25,7 @@ from pymongo.errors import DuplicateKeyError
 from brief.gemini_utils import TEXT_MODEL, call_with_retry, normalise, parsed_or_raise
 from brief.industries import IndustryGroup
 from brief.signals import CompanyProfile, SignalType, story_query_text
-from brief.story_search import find_similar_stories, find_similar_stories_hybrid
+from brief.story_search import EmbeddingRateLimit, find_similar_stories, find_similar_stories_hybrid
 
 ACCOUNTS_COLLECTION = "accounts"
 MAX_HISTORY = 5  # earlier versions kept per account; older ones are dropped
@@ -93,35 +93,38 @@ def score_account(profile: CompanyProfile) -> tuple[int, list[dict]]:
 
 # ---- 2. Match a story -------------------------------------------------------
 
-def search_stories(collection, gemini: genai.Client, query: str, industry: str | None, mode: str) -> list[dict]:
+def search_stories(collection, query: str, industry: str | None, mode: str) -> list[dict]:
     """The best story for query. Hybrid falls back to vector-only if it fails (for
-    example story_text_index is missing), so the demo never breaks."""
+    example story_text_index is missing), so the demo never breaks. Not on Atlas's
+    embedding rate limit: a second search would hit the same limit."""
     if mode == "hybrid":
         try:
-            stories = find_similar_stories_hybrid(collection, gemini, query, k=1, industry=industry)
+            stories = find_similar_stories_hybrid(collection, query, k=1, industry=industry)
             for story in stories:
                 story["match_mode"] = "hybrid"
             return stories
+        except EmbeddingRateLimit:
+            raise
         except Exception as exc:  # noqa: BLE001 - any search failure: use vector-only instead.
             log.warning("Hybrid story search failed, using vector-only: %s", exc)
-    stories = find_similar_stories(collection, gemini, query, k=1, industry=industry)
+    stories = find_similar_stories(collection, query, k=1, industry=industry)
     for story in stories:
         story["match_mode"] = "vector"
     return stories
 
 
-def match_story(collection, gemini: genai.Client, profile: CompanyProfile, mode: str | None = None) -> dict | None:
+def match_story(collection, profile: CompanyProfile, mode: str | None = None) -> dict | None:
     """Closest story in the same industry group; any industry if there's none.
     mode is "hybrid" or "vector" (default: STORY_MATCH_MODE env var, else "hybrid")."""
     mode = mode or os.getenv("STORY_MATCH_MODE", STORY_MATCH_MODE)
     query = story_query_text(profile)
     stories = []
     if profile.industry_group != IndustryGroup.OTHER:
-        stories = search_stories(collection, gemini, query, profile.industry_group.value, mode)
+        stories = search_stories(collection, query, profile.industry_group.value, mode)
     if stories:
         stories[0]["industry_filter"] = profile.industry_group.value
     else:
-        stories = search_stories(collection, gemini, query, None, mode)
+        stories = search_stories(collection, query, None, mode)
         if stories:
             stories[0]["industry_filter"] = None
     return stories[0] if stories else None

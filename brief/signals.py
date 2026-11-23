@@ -83,8 +83,8 @@ Below are public pages about the company (its website plus any extra links). Usi
 
 
 def story_query_text(profile: CompanyProfile) -> str:
-    """Text used to find the closest customer story. Same shape as the text the
-    stories were embedded from (company, industry, country, then the situation)."""
+    """Text used to find the closest customer story: Atlas embeds it and compares it
+    with each story's search_text (company, industry, then the situation)."""
     country = f", {profile.hq_country}" if profile.hq_country else ""
     return (
         f"{profile.company} ({profile.industry}{country}). "

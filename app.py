@@ -431,7 +431,8 @@ def page_how_it_works() -> None:
 4. **Match a customer story.** Hybrid search finds the closest of 48 public MongoDB
    customer stories, pre-filtered to the same industry: `$rankFusion` merges Atlas
    Vector Search (meaning) with Atlas Search (keywords), so a story ranked high in both
-   wins. If the keyword index is missing it falls back to Vector Search only.
+   wins. Atlas turns the text into vectors itself with Voyage AI (automated embedding).
+   If the keyword index is missing it falls back to Vector Search only.
 5. **Write the brief.** Gemini writes it from the verified evidence only; automatic
    checks flag numbers or vendor names that aren't in the evidence.
 6. **Save the account** in MongoDB, ranked in the Pipeline.
@@ -442,7 +443,7 @@ def page_how_it_works() -> None:
 |---|---|---|
 | Atlas (free M0 cluster) | Hosts `adr_brief` | Fully managed, free to start |
 | Document model | One document per account and per story, with signals, score breakdown, brief and history embedded | Data that's read together is stored together: one read shows a whole brief |
-| Atlas Vector Search with a filter | `stories.embedding` + `industry_group` | Matches by meaning, limited to the same industry, in the same database as the data |
+| Atlas Vector Search with automated embedding | `stories.search_text` + `industry_group` (`story_autoembed_index`, Voyage AI `voyage-4`) | Atlas embeds the stories and each query itself, so the app has no embedding code; matches by meaning, limited to the same industry, in the same database as the data |
 | Aggregation pipeline | Pipeline page | Sorts and shapes accounts on the server |
 | Schema validation | `stories`, `accounts` | Flexible documents, but bad data (e.g. a score of 150) is rejected |
 | Unique indexes | `stories.source_url`, `accounts.domain` | Re-running never creates duplicates |
@@ -469,5 +470,5 @@ page = st.segmented_control("Page", PAGES, key="page", required=True, width="str
 {"New account": page_new_account, "Pipeline": page_pipeline,
  "Brief": page_brief, "How it works": page_how_it_works}[page]()
 st.divider()
-st.caption("Built on MongoDB Atlas: document model, Atlas Vector Search and aggregation pipelines. "
+st.caption("Built on MongoDB Atlas: document model, Atlas Search, Vector Search with Voyage AI and aggregation pipelines. "
            "Text by Gemini; every quote is checked against its public source page.")

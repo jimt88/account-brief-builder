@@ -6,8 +6,6 @@ import time
 from google.genai import errors
 
 TEXT_MODEL = "gemini-3.5-flash-lite"
-EMBEDDING_MODEL = "gemini-embedding-001"
-EMBEDDING_DIMENSIONS = 768  # Must match the Vector Search index.
 
 
 RETRY_WAITS = [10, 20]  # Seconds. Short, so a live demo isn't left hanging.

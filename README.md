@@ -42,9 +42,9 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 | **Atlas M0 (free)** | `adr_brief` database | Fully managed; free to start |
 | **Document model** | One document per account (signals, score breakdown, brief, matched story, history embedded) and per story (outcomes embedded) | Data read together is stored together: one read renders a whole brief, no joins |
 | **Atlas Search + `$rankFusion` (hybrid search)** | `story_text_index` on the story text fields (`industry_group` as `token`), fused with the vector search in `find_similar_stories_hybrid()` | Keyword matches (e.g. "parcels", "payments") and meaning are ranked together with Reciprocal Rank Fusion, both pre-filtered to the industry. Default `STORY_MATCH_MODE=hybrid`; falls back to vector-only if the keyword index is missing. Needs MongoDB 8.0+ |
-| **Atlas Vector Search + filter** | `story_vector_index` on `stories.embedding` (768 dims, cosine) with `industry_group` as a filter field | Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data (no separate vector DB) |
+| **Atlas Vector Search + automated embedding (Voyage AI)** | `story_autoembed_index`: an `autoEmbed` field on `stories.search_text` (model `voyage-4`) with `industry_group` as a filter field | Atlas creates and updates the story embeddings itself, and embeds the query text at search time (`"query": {"text": ...}`), so the app has no embedding code, no vectors to store and no second AI provider. Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data |
 | **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal and its quote with `$filter` + `$first`) and `$vectorSearch` | Ranking and shaping happen on the server |
-| **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, wrong embedding size) |
+| **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, a story without `search_text`) |
 | **`$facet` aggregation** | Pipeline dashboard (`DASHBOARD_PIPELINE` in `brief/accounts.py`) | One aggregation computes accounts by status, count and average score by industry (`$group`, `$avg`, `$round`), signal counts (`$unwind`) and totals, in a single round trip. The page has a "Show the aggregation" button that displays it |
 | **TTL index** | `page_cache.fetched_at` (`expireAfterSeconds: 86400`), plus a unique `url` index and `$jsonSchema` | Pages read in the last 24 hours come from MongoDB instead of the web, so re-running an account is faster and kinder to the company's site. MongoDB deletes old pages itself; the TTL monitor runs about once a minute, so removal is not instant |
 | **Unique indexes** | `stories.source_url`, `accounts.domain` | Re-running never duplicates; plus a `score` index for the ranked view |
@@ -54,11 +54,15 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 
 ## Free-tier limits (what to expect)
 
-- **Gemini free tier:** a few requests per minute and a daily cap. Each brief uses 3
-  Gemini calls plus 1 embedding; the app retries on "busy" errors (429/503) with
-  increasing waits. If the daily cap is hit, try again later.
+- **Gemini free tier:** a few requests per minute and a daily cap. Each brief uses 2
+  Gemini calls (signals, brief) and no embedding calls; the app retries on "busy"
+  errors (429/503) with increasing waits. If the daily cap is hit, try again later.
+- **Atlas automated embedding on M0:** query embeddings are limited to about 3 a minute
+  (one per story match). If it's hit, the app says "Atlas embedding limit reached, try
+  again in a minute". Looping scripts pause 21 s between searches.
 - **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts.
-  Up to 3 search/vector indexes on M0; this app uses 2 (`story_vector_index`, `story_text_index`).
+  Up to 3 search/vector indexes per cluster (sample datasets count too); this app uses 2
+  (`story_autoembed_index`, `story_text_index`).
 - **Streamlit Community Cloud:** the app sleeps after a period without visitors;
   the first load after that takes about 30 seconds.
 - **Websites:** some sites block automated readers (e.g. openai.com returns 403) or only
@@ -85,20 +89,22 @@ MongoDB's customer pages.
 ### Vector-only vs hybrid story match
 
 `python scripts/compare_story_modes.py` re-runs only the story search for the same 5
-accounts (saved profiles and verified signals), once per mode. Ranks show where the
-hybrid winner placed in each search (meaning = Vector Search, keywords = Atlas Search).
+accounts (saved profiles and verified signals), once per mode, using Atlas automated
+embedding (Voyage AI `voyage-4`). Ranks show where the hybrid winner placed in each
+search (meaning = Vector Search, keywords = Atlas Search).
 
 | Company | Vector-only story | Hybrid story (ranks: meaning, keywords) | Which fits better and why |
 |---|---|---|---|
-| Glanbia | Decathlon | ICA Gruppen (3, 1) | **Hybrid.** Glanbia is a food and nutrition group running a transformation programme; ICA is a food retailer that migrated off a legacy database. Decathlon (sporting goods reviews) was only a loose meaning match |
+| Glanbia | L’Oréal | ICA Gruppen (2, 1) | **Hybrid.** Glanbia is a food and nutrition group running a transformation programme; ICA is a food retailer that migrated off a legacy database. L’Oréal (beauty) is only a loose consumer-goods match |
 | Bank of Ireland | Lombard Odier | Lombard Odier (1, 2) | Same. A bank scaling AI matches a bank modernising with gen AI in both searches |
-| N26 | HYPE | Lombard Odier (2, 1) | **Vector-only.** HYPE is a neobank like N26; Lombard Odier won on shared words ("digital", "banking", "transformation") but is a private bank. Keywords can pull towards a wordier story |
-| Allegro | Vestiaire Collective | Vestiaire Collective (1, 1) | Same. Online marketplace to online marketplace, first in both searches |
+| N26 | HYPE | Lombard Odier (3, 1) | **Vector-only.** HYPE is a neobank like N26; Lombard Odier won on shared words ("digital", "banking", "transformation") but is a private bank. Keywords can pull towards a wordier story |
+| Allegro | OTTO | OTTO (1, 3) | Same. Online marketplace to a large online retailer and marketplace |
 | DSV | Bolloré Transport & Logistics | Bolloré Transport & Logistics (1, 1) | Same. Logistics to logistics, first in both searches |
 
-Hybrid agreed on 3 of 5, improved 1 and was worse on 1. It stays the default because
-a story ranked high on both meaning and exact words is usually the safer proof point,
-and the ranks are shown on the Brief page. Set `STORY_MATCH_MODE=vector` to switch back.
+Hybrid agreed on 3 of 5, improved 1 and was worse on 1, the same pattern as with the
+old Gemini embeddings (Voyage changed the vector-only pick for Glanbia and Allegro). It
+stays the default because a story ranked high on both meaning and exact words is usually
+the safer proof point, and the ranks are shown on the Brief page. Set `STORY_MATCH_MODE=vector` to switch back.
 
 ## What could break in a live demo (and what the app says)
 
@@ -119,7 +125,6 @@ instantly even if Gemini is busy during the demo.
 
 ## What's next
 
-- Voyage AI embeddings (MongoDB's own models) instead of Gemini embeddings.
 - A "paste text" box for sites that block readers.
 - Change streams to notify when an account's score changes on re-run.
 
@@ -128,8 +133,9 @@ free tiers only, public pages only (no logins, LinkedIn or paywalls).
 
 ## Stack
 
-Python 3.11, Streamlit, pymongo, google-genai (`gemini-3.5-flash-lite`,
-`gemini-embedding-001`), requests, beautifulsoup4, MongoDB Atlas (M0).
+Python 3.11, Streamlit, pymongo, google-genai (`gemini-3.5-flash-lite`, text only),
+requests, beautifulsoup4, MongoDB Atlas (M0) with Atlas Search, Vector Search and
+automated embedding (Voyage AI `voyage-4`, run by Atlas).
 
 ## Setup (local)
 
@@ -161,49 +167,65 @@ companies), asks Gemini to pull out the company, industry, challenge, solution a
 outcomes, and saves one document per story in `adr_brief.stories`. Every outcome
 keeps an exact quote; quotes that are not word-for-word on the page are dropped,
 and a story with no verified quote is not saved.
-Each story also gets a 768-number embedding from `gemini-embedding-001`, used by
-Vector Search in the next step. A readable copy (no embeddings) is saved to
-`data/stories.json`.
+Each story also gets a `search_text` field (company, industry, use case, challenge,
+solution, summary and outcome claims). Atlas embeds it with Voyage AI for Vector
+Search in the next step; the script makes no embedding calls. A readable copy is saved
+to `data/stories.json`.
 
 To add stories, add public mongodb.com customer-story links to
 `data/story_urls.txt` and run the script again. Stories already in Atlas are
 skipped, so only the new links use Gemini. Add `--refresh` to re-read every story.
-The Vector Search index picks up new stories automatically; the app needs no changes.
+Atlas embeds new stories automatically; the app needs no changes.
 
 Story document shape (one collection, everything about a story in one document):
 
 ```
 { company, hq_country, region: "EMEA", industry, mongodb_products: [...],
   use_case, challenge, solution, outcomes: [{claim, quote}], summary,
-  source_url (unique), embedding: [768 numbers], embedding_model,
+  source_url (unique), search_text (embedded by Atlas), industry_group,
   fetched_at, schema_version }
 ```
 
 ## Find the closest customer story (Vector Search)
 
-Create the Atlas Vector Search index once (safe to re-run; waits until it is ready):
+Create the automated-embedding Vector Search index once (safe to re-run; prints the
+cluster's search-index count before and after and waits until it is ready):
 
 ```
-python scripts/create_vector_index.py
+python scripts/create_autoembed_index.py
 ```
 
-Index `story_vector_index` on `adr_brief.stories`: field `embedding`, 768 dimensions,
-`cosine` similarity, plus a `filter` field `industry_group` so a search can be limited
-to one industry (10 fixed groups in `brief/industries.py`; existing stories were tagged
-by `scripts/tag_story_industries.py`). Then search with a plain-English description:
+Index `story_autoembed_index` on `adr_brief.stories`:
+
+```
+{ "fields": [
+    { "type": "autoEmbed", "modality": "text", "path": "search_text", "model": "voyage-4" },
+    { "type": "filter", "path": "industry_group" } ] }
+```
+
+The `filter` field lets a search be limited to one industry (10 fixed groups in
+`brief/industries.py`; existing stories were tagged by `scripts/tag_story_industries.py`).
+Then search with a plain-English description:
 
 ```
 python scripts/find_story.py "German online retailer with a slow product catalogue"
 python scripts/find_story.py --industry "Retail & Consumer" "slow product catalogue"
 ```
 
-It embeds the description with the same Gemini model and prints the closest stories
-with a similarity score (0–1, higher is closer) and the source link. In code:
-`find_similar_stories(collection, gemini, text, k=2, industry=None)` in
+It sends the text as `"query": {"text": ...}` in `$vectorSearch`; Atlas embeds it with
+the same Voyage model and returns the closest stories with a similarity score (0–1,
+higher is closer) and the source link. In code:
+`find_similar_stories(collection, text, k=2, industry=None)` in
 `brief/story_search.py` returns company, url, summary and score.
 
+**Moving from Gemini embeddings (done once on this cluster):**
+`python scripts/migrate_search_text.py --keep-embeddings` (adds `search_text`, updates
+the validator), `python scripts/create_autoembed_index.py`, check matches, then
+`python scripts/create_autoembed_index.py --drop-old` (deletes `story_vector_index`)
+and `python scripts/migrate_search_text.py` (removes the old `embedding` field with `$unset`).
+
 Test it with 3 example queries (checks result count, order, industry filter and an
-expected match; pauses between calls for the Gemini free tier):
+expected match; pauses 21 s between searches for the M0 embedding limit):
 
 ```
 python scripts/test_story_search.py                # Vector Search only
@@ -222,12 +244,12 @@ python scripts/create_search_index.py
 Index `story_text_index` maps `company`, `industry`, `use_case`, `challenge`,
 `solution`, `summary` and `outcomes.claim` as text (standard analyzer), and
 `industry_group` as an exact-match `token` for filtering.
-`find_similar_stories_hybrid(collection, gemini, text, k=2, industry=None)` runs one
+`find_similar_stories_hybrid(collection, text, k=2, industry=None)` runs one
 aggregation:
 
 ```
 $rankFusion
-  vector: $vectorSearch story_vector_index (filter industry_group)
+  vector: $vectorSearch story_autoembed_index, query {text} (filter industry_group)
   text:   $search story_text_index, compound should: text over the fields,
           filter: equals industry_group
   combination weights: vector 1, text 1   (Reciprocal Rank Fusion)
@@ -236,7 +258,8 @@ $limit k, $project story fields + fusion score + score details
 
 The app uses it by default (`STORY_MATCH_MODE=hybrid` in `brief/build.py`; set the
 environment variable to `vector` to switch). If hybrid fails, for example the index is
-missing, it falls back to vector-only. Try both:
+missing, it falls back to vector-only (but not on the Atlas embedding limit, since the
+vector search would hit the same limit). Try both:
 `python scripts/find_story.py --mode hybrid "parcel tracking in real time"`,
 `python scripts/evaluate_accounts.py --mode vector`.
 
@@ -257,7 +280,7 @@ python scripts/extract_signals.py "Ocado Group" ocadogroup.com
    scale_or_real_time, new_market_or_product, other.
 3. Every quote is checked word for word against the page text (ignoring case, spacing
    and curly quotes); signals whose quote isn't really there are dropped.
-4. The company's "situation" is matched to the closest MongoDB story with Vector Search.
+4. The company's "situation" is matched to the closest MongoDB story (hybrid search).
 
 Add `--json` to get the raw result. Shared code lives in `brief/` (`website.py`,
 `signals.py`, `story_search.py`) so the Streamlit app can reuse it.
@@ -355,7 +378,7 @@ phone-friendly:
 
 One-time database setup (run locally with an admin connection string):
 `scripts/build_story_library.py`, `scripts/tag_story_industries.py`,
-`scripts/create_vector_index.py`, `scripts/create_search_index.py`, `scripts/setup_accounts.py`,
+`scripts/migrate_search_text.py`, `scripts/create_autoembed_index.py`, `scripts/create_search_index.py`, `scripts/setup_accounts.py`,
 `scripts/setup_page_cache.py`.
 
 Before publishing, the repo was checked with [gitleaks](https://github.com/gitleaks/gitleaks)
@@ -372,4 +395,4 @@ Skills read before writing database code, and used in this project:
 |---|---|
 | `mongodb-connection` | Client setup in `check_connection.py`: one client, default pool, short server-selection timeout. |
 | `mongodb-schema-design` (embed vs reference, document model, schema validation) | `adr_brief.stories`: one self-contained document per story (embedded outcomes, no joins), a `$jsonSchema` validator, and a unique index on `source_url`. |
-| `mongodb-search-and-ai` (vector search, automated embedding, hybrid search) | Bring-your-own Gemini embeddings (free tier); the `story_vector_index` definition (768 dims, cosine) and `$vectorSearch` query with `numCandidates` = 20× `limit`. |
+| `mongodb-search-and-ai` (vector search, automated embedding, hybrid search) The `story_autoembed_index` definition (`autoEmbed` + `filter`), the text-query `$vectorSearch` with `numCandidates` = 20× `limit`, the M0 3-queries-a-minute limit, and `$rankFusion` hybrid search. |

@@ -8,6 +8,7 @@ from google.genai import errors as gemini_errors
 from pymongo import errors as mongo_errors
 
 from brief.gemini_utils import GeminiEmptyAnswer
+from brief.story_search import EmbeddingRateLimit, is_rate_limit
 
 
 def friendly_error(exc: Exception) -> str:
@@ -22,6 +23,8 @@ def friendly_error(exc: Exception) -> str:
         return f"Gemini returned an error ({exc.code}). Please try again."
     if isinstance(exc, GeminiEmptyAnswer):
         return "Gemini gave an incomplete answer. Please click Build brief again."
+    if isinstance(exc, EmbeddingRateLimit) or is_rate_limit(exc):
+        return "Atlas embedding limit reached, try again in a minute."
     if isinstance(exc, mongo_errors.OperationFailure) and exc.code in (8000, 18):
         return ("MongoDB Atlas rejected the username or password. Check MONGODB_URI in the app's "
                 "secrets (the password must replace <db_password>).")

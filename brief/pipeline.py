@@ -83,9 +83,9 @@ def build_brief(
     score, breakdown = score_account(profile)
 
     progress("3/5 Finding the closest MongoDB customer story ...")
-    story = match_story(db[COLLECTION_NAME], gemini, profile, mode=match_mode)
+    story = match_story(db[COLLECTION_NAME], profile, mode=match_mode)
     if story is None:
-        raise BriefError("No customer story found. Has scripts/create_vector_index.py been run?")
+        raise BriefError("No customer story found. Has scripts/create_autoembed_index.py been run?")
 
     progress("4/5 Writing the brief ...")
     brief = write_brief(gemini, profile, story)

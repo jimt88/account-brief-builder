@@ -5,11 +5,12 @@ For each URL in data/story_urls.txt this script:
   2. asks Gemini to pull out structured facts (company, industry, challenge,
      solution, outcomes). Every outcome must come with an exact quote, and we
      drop any outcome whose quote is not really on the page,
-  3. creates an embedding of the story with gemini-embedding-001,
+  3. builds search_text (company, industry, use case, challenge, solution, summary,
+     outcome claims), which Atlas embeds itself with Voyage AI (automated
+     embedding, see scripts/create_autoembed_index.py),
   4. saves (upserts) one document per story, keyed by source_url.
 
-A copy of the stories (without embeddings) is written to data/stories.json so
-they can be reviewed in GitHub.
+A copy of the stories is written to data/stories.json so they can be reviewed in GitHub.
 
 Run from the project folder:  python scripts/build_story_library.py
 Needs MONGODB_URI and GEMINI_API_KEY in the environment or in .env.
@@ -35,7 +36,8 @@ from pydantic import BaseModel
 from pymongo import MongoClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from brief.industries import INDUSTRY_GROUPS, IndustryGroup  # noqa: E402
+from brief.industries import IndustryGroup  # noqa: E402
+from brief.story_search import STORY_VALIDATOR, search_text  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 URLS_FILE = ROOT / "data" / "story_urls.txt"
@@ -46,8 +48,6 @@ COLLECTION_NAME = "stories"
 SCHEMA_VERSION = 1
 
 TEXT_MODEL = "gemini-3.5-flash-lite"
-EMBEDDING_MODEL = "gemini-embedding-001"
-EMBEDDING_DIMENSIONS = 768  # Must match the Vector Search index (next step).
 
 MAX_PAGE_CHARS = 20_000  # Story pages are short; this keeps prompts small.
 PAUSE_SECONDS = 4  # Stay under the Gemini free-tier requests-per-minute limit.
@@ -144,54 +144,6 @@ def extract_facts(client: genai.Client, page_text: str) -> StoryFacts:
     return response.parsed
 
 
-def embed_story(client: genai.Client, story: dict) -> list[float]:
-    """One embedding per story, built from the fields that describe the situation."""
-    text = (
-        f"{story['company']} ({story['industry']}, {story['hq_country']}). "
-        f"Use case: {story['use_case']}. Challenge: {story['challenge']} "
-        f"Solution: {story['solution']} Summary: {story['summary']}"
-    )
-    response = call_with_retry(
-        client.models.embed_content,
-        model=EMBEDDING_MODEL,
-        contents=[text],
-        config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_DOCUMENT",
-            output_dimensionality=EMBEDDING_DIMENSIONS,
-        ),
-    )
-    return list(response.embeddings[0].values)
-
-
-# MongoDB-side validation: rejects malformed story documents (see
-# docs/mongodb-skills/mongodb-schema-design/references/fundamental-schema-validation.md).
-STORY_VALIDATOR = {
-    "$jsonSchema": {
-        "bsonType": "object",
-        "required": ["source_url", "company", "industry", "summary", "outcomes", "embedding", "schema_version"],
-        "properties": {
-            "source_url": {"bsonType": "string"},
-            "company": {"bsonType": "string", "minLength": 1},
-            "industry": {"bsonType": "string"},
-            "industry_group": {"enum": INDUSTRY_GROUPS},
-            "summary": {"bsonType": "string", "minLength": 1},
-            "outcomes": {
-                "bsonType": "array",
-                "maxItems": 4,
-                "items": {"bsonType": "object", "required": ["claim", "quote"]},
-            },
-            "embedding": {
-                "bsonType": "array",
-                "minItems": EMBEDDING_DIMENSIONS,
-                "maxItems": EMBEDDING_DIMENSIONS,
-                "items": {"bsonType": "double"},
-            },
-            "schema_version": {"bsonType": "int"},
-        },
-    }
-}
-
-
 def get_stories_collection(mongo: MongoClient):
     db = mongo[DB_NAME]
     if COLLECTION_NAME in db.list_collection_names():
@@ -244,17 +196,15 @@ def main() -> int:
                 source_url=url,
                 fetched_at=datetime.now(timezone.utc),
                 schema_version=SCHEMA_VERSION,
-                embedding_model=EMBEDDING_MODEL,
             )
-            story["embedding"] = embed_story(gemini, story)
-            time.sleep(PAUSE_SECONDS)
+            story["search_text"] = search_text(story)
 
             collection.update_one({"source_url": url}, {"$set": story}, upsert=True)
             saved += 1
             print(f"    saved: {story['company']} | {story['industry']} | {len(outcomes)} quoted outcomes"
                   + (f" ({dropped} dropped: quote not found on page)" if dropped else ""))
 
-            review_copy = {k: v for k, v in story.items() if k != "embedding"}
+            review_copy = dict(story)
             review_copy["fetched_at"] = review_copy["fetched_at"].isoformat()
             reviewed.append(review_copy)
         except Exception as exc:  # Keep going; report failures at the end.

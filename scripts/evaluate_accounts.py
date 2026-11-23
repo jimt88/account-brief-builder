@@ -34,7 +34,7 @@ COMPANIES = [
     ("Allegro", "allegro.eu"),                  # Poland
     ("DSV", "dsv.com"),                         # Denmark
 ]
-PAUSE_SECONDS = 20
+PAUSE_SECONDS = 21  # Gemini free tier, and Atlas query embeddings (about 3 a minute on M0).
 
 
 def quotes_on_pages(signals: list) -> tuple[int, list[str]]:

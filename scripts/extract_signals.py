@@ -53,7 +53,7 @@ def main() -> int:
         profile, dropped = extract_signals(gemini, company, pages)
 
         mongo = MongoClient(mongo_uri, serverSelectionTimeoutMS=10_000, appname="account-brief")
-        story = match_story(mongo[DB_NAME][COLLECTION_NAME], gemini, profile)
+        story = match_story(mongo[DB_NAME][COLLECTION_NAME], profile)
 
         if as_json:
             result = profile.model_dump(mode="json")
