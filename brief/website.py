@@ -5,8 +5,12 @@ Rules we follow:
     or return 401/403 (paywalls, members-only areas),
   - we respect robots.txt,
   - we stay on the company's own domain (no LinkedIn or other sites),
-  - we read at most MAX_PAGES pages (home, about, careers, engineering blog),
-    each with a TIMEOUT_SECONDS limit, so it's quick and polite.
+  - we stay on the company's registrable domain (careers., investors. and other
+    subdomains are fine) and never follow links to other sites,
+  - we read at most MAX_PAGES pages: the home page, then the best-scoring URLs from
+    the sitemap (careers, engineering, news, investors, strategy, ...), or the best
+    home-page links if there is no sitemap. Each page has a TIMEOUT_SECONDS limit,
+    4 are read at a time, and reading stops after CRAWL_TIME_BUDGET_S.
 
 You can also pass up to MAX_EXTRA_PAGES extra links (a press release, a careers
 page, a news article). These may be on other sites, but the same rules apply,
@@ -23,17 +27,30 @@ import ipaddress
 import logging
 import re
 import socket
+import threading
+import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urldefrag, urljoin, urlparse
 from urllib.robotparser import RobotFileParser
+from xml.etree import ElementTree
 
 import requests
 from bs4 import BeautifulSoup
 from pymongo.errors import PyMongoError
 
 USER_AGENT = "Mozilla/5.0 (compatible; account-brief-builder/0.1)"
-MAX_PAGES = 4  # Home page + about + careers + engineering blog.
+MAX_PAGES = 30  # Home page plus the best-scoring pages from the sitemap (or links).
+CRAWL_TIME_BUDGET_S = 60  # Stop reading the site after this; keep what was read.
+CRAWL_WORKERS = 4  # Pages downloaded at the same time.
+MAX_SITEMAPS = 5  # Sitemap files (or sitemap indexes) read per site.
+MAX_SITEMAP_URLS = 5_000
+# Words in a sitemap URL's path that suggest useful signals (one point each).
+SITEMAP_KEYWORDS = ["careers", "jobs", "engineering", "tech", "technology", "blog", "news", "press",
+                    "media", "investors", "annual-report", "results", "strategy", "digital", "data",
+                    "cloud", "ai", "platform", "about"]
+RECENT_BONUS = 2  # Extra points for a sitemap lastmod in the last 12 months.
 TIMEOUT_SECONDS = 10
 MAX_REDIRECTS = 5
 # The pages we look for after the home page, in order, and words that identify them.
@@ -136,11 +153,22 @@ def normalise_website(website: str) -> str:
     return website
 
 
+SECOND_LEVEL = {"co", "com", "org", "net", "gov", "ac", "edu", "ltd", "plc"}
+
+
+def registrable_domain(host: str) -> str:
+    """'careers.bankofireland.com' -> 'bankofireland.com'; 'shop.tesco.co.uk' -> 'tesco.co.uk'."""
+    parts = host.lower().split(":")[0].strip(".").split(".")
+    if len(parts) >= 3 and len(parts[-1]) == 2 and parts[-2] in SECOND_LEVEL:
+        return ".".join(parts[-3:])
+    return ".".join(parts[-2:])
+
+
 def same_site(url: str, home: str) -> bool:
-    """True if url is on the same domain as home (www. and subdomains allowed)."""
-    host = urlparse(url).netloc.lower().removeprefix("www.")
-    home_host = urlparse(home).netloc.lower().removeprefix("www.")
-    return host == home_host or host.endswith("." + home_host)
+    """True if url is on the same registrable domain as home (any subdomain, e.g.
+    careers. or investors.), never another site."""
+    host, home_host = urlparse(url).netloc, urlparse(home).netloc
+    return bool(host) and registrable_domain(host) == registrable_domain(home_host)
 
 
 def load_robots(home: str) -> RobotFileParser:
@@ -267,76 +295,156 @@ def pick_target_links(candidates: list[str]) -> list[str]:
     return picked + [u for u in candidates if u not in picked]
 
 
+def parse_sitemap(xml_text: str) -> tuple[list[tuple[str, str]], list[str]]:
+    """([(page url, lastmod)], [child sitemap urls]) from a sitemap or sitemap index."""
+    try:
+        root = ElementTree.fromstring(xml_text.encode("utf-8") if isinstance(xml_text, str) else xml_text)
+    except ElementTree.ParseError:
+        return [], []
+    pages, children = [], []
+    for entry in root:
+        kind = entry.tag.rsplit("}", 1)[-1]
+        fields = {child.tag.rsplit("}", 1)[-1]: (child.text or "").strip() for child in entry}
+        if not fields.get("loc"):
+            continue
+        if kind == "sitemap":
+            children.append(fields["loc"])
+        elif kind == "url":
+            pages.append((fields["loc"], fields.get("lastmod", "")))
+    return pages, children
+
+
+def score_url(url: str, lastmod: str = "", now: datetime | None = None) -> int:
+    """Points for useful words in the URL path, plus RECENT_BONUS if lastmod is in the
+    last 12 months. 0 for legal/cookie/privacy/login/cart pages, PDFs and other files."""
+    path = urlparse(url).path.lower()
+    if path.endswith(SKIP_EXTENSIONS) or any(w in path for w in SKIP_WORDS):
+        return 0
+    tokens = set(re.split(r"[^a-z0-9]+", path))
+    points = sum(1 for k in SITEMAP_KEYWORDS if (k in path if "-" in k else k in tokens))
+    if points and lastmod:
+        try:
+            modified = datetime.fromisoformat(lastmod.replace("Z", "+00:00"))
+            modified = modified if modified.tzinfo else modified.replace(tzinfo=timezone.utc)
+            if (now or datetime.now(timezone.utc)) - modified <= timedelta(days=365):
+                points += RECENT_BONUS
+        except ValueError:
+            pass
+    return points
+
+
+def sitemap_links(home: str, robots: RobotFileParser, deadline: float) -> list[str]:
+    """Same-site URLs from the sitemaps named in robots.txt and /sitemap.xml (max
+    MAX_SITEMAPS files, sitemap indexes followed), best score first."""
+    queue = list(robots.site_maps() or []) + [urljoin(home, "/sitemap.xml")]
+    seen, entries, files = set(), {}, 0
+    while queue and files < MAX_SITEMAPS and time.monotonic() < deadline:
+        sitemap = queue.pop(0)
+        if sitemap in seen or not same_site(sitemap, home) or sitemap.lower().endswith(".gz"):
+            continue
+        seen.add(sitemap)
+        files += 1
+        response = public_get(sitemap)
+        if response is None or response.status_code != 200:
+            continue
+        pages, children = parse_sitemap(response.text)
+        queue += children
+        for url, lastmod in pages[:MAX_SITEMAP_URLS]:
+            if same_site(url, home):
+                entries.setdefault(urldefrag(url)[0].rstrip("/"), lastmod)
+    now = datetime.now(timezone.utc)
+    scored = {url: score_url(url, lastmod, now) for url, lastmod in entries.items()}
+    return sorted((u for u, points in scored.items() if points),
+                  key=lambda u: (-scored[u], len(urlparse(u).path)))
+
+
 def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | None = None,
                  cache=None) -> list[Page]:
-    """Return up to max_pages public pages from the company's website.
+    """Return up to max_pages public pages from the company's website: the home page,
+    then the best-scoring sitemap URLs (or, with no sitemap, the best links on the home
+    page). Pages are read 4 at a time and reading stops after CRAWL_TIME_BUDGET_S.
     If `notes` is given, a friendly line is added for each page we couldn't read.
     If `cache` is given, pages read in the last 24 hours come from MongoDB."""
     notes = notes if notes is not None else []
     home = normalise_website(website)
-    _robots = []
+    deadline = time.monotonic() + CRAWL_TIME_BUDGET_S
+    robots_by_host, robots_lock = {}, threading.Lock()
 
-    def robots() -> RobotFileParser:
-        """robots.txt, downloaded only once something actually needs downloading."""
-        if not _robots:
-            _robots.append(load_robots(home))
-        return _robots[0]
+    def robots(url: str) -> RobotFileParser:
+        """robots.txt of url's host (subdomains have their own), downloaded once."""
+        host = urlparse(url).netloc.lower()
+        with robots_lock:
+            if host not in robots_by_host:
+                robots_by_host[host] = load_robots(url)
+            return robots_by_host[host]
 
     hit = cached_page(cache, home)
     if hit and hit[1] is not None:  # Cached as a home page, so we know its sub-pages.
         home_page, candidates = hit
         home_url, pages = home_page.url, [home_page]
     else:
-        if not robots().can_fetch(USER_AGENT, home):
+        if not robots(home).can_fetch(USER_AGENT, home):
             raise ValueError(f"robots.txt does not allow reading {home}")
         first = fetch(home)
         if first is None:
             raise ValueError(f"Could not open {home} (it may be down, blocked or not public).")
         home_url, home_soup = first
-        candidates = pick_target_links(pick_links(home_soup, home_url, home_url))  # Before stripping menus.
+        candidates = (sitemap_links(home_url, robots(home), deadline)
+                      or pick_target_links(pick_links(home_soup, home_url, home_url)))  # Before stripping menus.
         pages = []
         if not looks_like_login(home_soup):
             title = home_soup.title.get_text(strip=True) if home_soup.title else home_url
             links = outside_links(home_soup, home_url)
             pages.append(Page(home_url, title, page_text(home_soup)[:MAX_CHARS_PER_PAGE], found_links=links))
 
-    seen, read_links, thin_page_links = {home_url.rstrip("/")}, [], []
-    for url in candidates:
-        if len(pages) >= max_pages:
-            break
-        if url in seen:
-            continue
+    def read_one(url: str):
+        """(page, cached?, job-board links from a thin page) for one candidate, or None."""
         hit = cached_page(cache, url)
         if hit:
-            seen.add(url)
-            pages.append(hit[0])
-            read_links.append(url)
-            continue
-        if not robots().can_fetch(USER_AGENT, url):
+            return hit[0], True, []
+        if not robots(url).can_fetch(USER_AGENT, url):
             notes.append(f"Skipped {url}: the site's robots.txt asks readers not to open it.")
-            continue
-        seen.add(url)
+            return None
         result = fetch(url)
         if result is None:
             notes.append(f"Couldn't read {url}: it didn't open within {TIMEOUT_SECONDS} s, or isn't public.")
-            continue
+            return None
         final_url, soup = result
         if looks_like_login(soup):
             notes.append(f"Skipped {url}: it asks for a login.")
-            continue
-        if final_url.rstrip("/") in seen - {url}:
-            continue
-        seen.add(final_url.rstrip("/"))
+            return None
         title = soup.title.get_text(strip=True) if soup.title else final_url
         links = outside_links(soup, final_url)
         text = page_text(soup)
-        if len(text) >= MIN_CHARS:
-            pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE], found_links=links))
-            store_page(cache, url, pages[-1])
-            read_links.append(url)
-        else:
+        if len(text) < MIN_CHARS:
             notes.append(f"Skipped {url}: almost no text (it probably needs JavaScript).")
-            thin_page_links += links  # E.g. a careers page that only embeds a job board.
+            return None, False, links  # E.g. a careers page that only embeds a job board.
+        return Page(final_url, title, text[:MAX_CHARS_PER_PAGE], found_links=links), False, []
+
+    seen, read_links, thin_page_links = {home_url.rstrip("/")}, [], []
+    todo = [u for u in dict.fromkeys(candidates) if u.rstrip("/") not in seen]
+    out_of_time = False
+    while todo and len(pages) < max_pages and not out_of_time:
+        wave, todo = todo[:max_pages - len(pages)], todo[max_pages - len(pages):]
+        pool = ThreadPoolExecutor(CRAWL_WORKERS)
+        futures = {url: pool.submit(read_one, url) for url in wave}
+        done, _ = wait(futures.values(), timeout=max(0.0, deadline - time.monotonic()))
+        pool.shutdown(wait=False, cancel_futures=True)
+        out_of_time = len(done) < len(futures)
+        for url, future in futures.items():  # Keep the candidates' order (best first).
+            if future not in done or future.exception() or future.result() is None:
+                continue
+            page, cached, links = future.result()
+            thin_page_links += links
+            if page is None or page.url.rstrip("/") in seen or len(pages) >= max_pages:
+                continue
+            seen.add(page.url.rstrip("/"))
+            pages.append(page)
+            read_links.append(url)
+            if not cached:
+                store_page(cache, url, page)
+    if out_of_time:
+        notes.append(f"Stopped reading the site after {CRAWL_TIME_BUDGET_S} s; kept {len(pages)} pages.")
 
     # Keep job-board links from thin pages on the home page (and in its cache entry).
     if pages and thin_page_links:
