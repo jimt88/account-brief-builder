@@ -20,7 +20,7 @@ real download.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urldefrag, urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -80,14 +80,17 @@ class Page:
 # page's document also keeps `links`: the pages read after it last time, so a cached
 # re-run needs no downloads at all.
 
-def cached_page(cache, url: str) -> tuple[Page, list[str]] | None:
-    """The cached page for url (and its saved links), or None."""
+def cached_page(cache, url: str) -> tuple[Page, list[str] | None] | None:
+    """The cached page for url and its saved links (None if it wasn't read as a home
+    page), or None. Pages older than CACHE_SECONDS are ignored even if the TTL monitor
+    hasn't deleted them yet."""
     if cache is None:
         return None
-    doc = cache.find_one({"url": url})
+    fresh_after = datetime.now(timezone.utc) - timedelta(seconds=CACHE_SECONDS)
+    doc = cache.find_one({"url": url, "fetched_at": {"$gte": fresh_after}})
     if doc is None:
         return None
-    return Page(doc["final_url"], doc["title"], doc["text"], cached=True), doc.get("links", [])
+    return Page(doc["final_url"], doc["title"], doc["text"], cached=True), doc.get("links")
 
 
 def store_page(cache, url: str, page: Page, links: list[str] | None = None) -> None:
@@ -202,7 +205,7 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
         return _robots[0]
 
     hit = cached_page(cache, home)
-    if hit:
+    if hit and hit[1] is not None:  # Cached as a home page, so we know its sub-pages.
         home_page, candidates = hit
         home_url, pages = home_page.url, [home_page]
     else:

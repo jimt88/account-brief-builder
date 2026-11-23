@@ -118,7 +118,8 @@ class FakeCache:
         self.docs = {}
 
     def find_one(self, query):
-        return self.docs.get(query["url"])
+        doc = self.docs.get(query["url"])
+        return doc if doc and doc["fetched_at"] >= query["fetched_at"]["$gte"] else None
 
     def update_one(self, query, update, upsert=False):
         self.docs.setdefault(query["url"], {}).update(update["$set"])
@@ -152,3 +153,19 @@ def test_cached_extra_link_is_not_downloaded():
     with mock.patch.object(website.requests, "get", side_effect=AssertionError("no downloads")):
         pages, skipped = read_extra_pages(["https://example.com/about"], cache=cache)
     assert [p.cached for p in pages] == [True] and skipped == []
+
+
+def test_expired_pages_are_ignored_before_ttl_deletes_them():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_extra_pages(["https://example.com/about"], cache=cache)
+    cache.docs["https://example.com/about"]["fetched_at"] -= website.timedelta(seconds=website.CACHE_SECONDS + 1)
+    assert website.cached_page(cache, "https://example.com/about") is None
+
+
+def test_home_cached_as_extra_link_still_finds_sub_pages():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_extra_pages(["https://example.com"], cache=cache)  # Cached without links.
+        pages = read_website("example.com", cache=cache)
+    assert [p.url for p in pages] == ["https://example.com", "https://example.com/about"]
