@@ -203,8 +203,13 @@ def test_competitor_database_quote_must_name_a_database():
         Signal(type=SignalType.COMPETITOR_DATABASE, quote="Our ledger runs on Oracle and PostgreSQL today.",
                source_url=job.url, technology="Oracle"),
         Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.", source_url=job.url),
+        Signal(type=SignalType.COMPETITOR_DATABASE, quote="You will mentor engineers on our team.", source_url=job.url,
+               technology="Oracle"),
     ], [job])
     assert [s.technology for s in kept] == ["Oracle"]
+    other = Page(url="https://acme.com", title="Acme", text="Orders are stored in Vitess across three regions.")
+    assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=other.text, source_url=other.url,
+                                  technology="Vitess")], [other])[0].technology == "Vitess"
 
 
 def test_pages_are_labelled_with_source_and_date():
