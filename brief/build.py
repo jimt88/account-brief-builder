@@ -29,8 +29,9 @@ from brief.story_search import find_similar_stories, find_similar_stories_hybrid
 
 ACCOUNTS_COLLECTION = "accounts"
 MAX_HISTORY = 5  # earlier versions kept per account; older ones are dropped
-# "hybrid" ($rankFusion of meaning + keywords) or "vector" (meaning only).
-STORY_MATCH_MODE = os.getenv("STORY_MATCH_MODE", "hybrid")
+# "hybrid" ($rankFusion of meaning + keywords) or "vector" (meaning only). The
+# STORY_MATCH_MODE environment variable (or .env) overrides it, read at match time.
+STORY_MATCH_MODE = "hybrid"
 log = logging.getLogger(__name__)
 
 # ---- 1. Score ---------------------------------------------------------------
@@ -111,8 +112,8 @@ def search_stories(collection, gemini: genai.Client, query: str, industry: str |
 
 def match_story(collection, gemini: genai.Client, profile: CompanyProfile, mode: str | None = None) -> dict | None:
     """Closest story in the same industry group; any industry if there's none.
-    mode is "hybrid" or "vector" (default STORY_MATCH_MODE)."""
-    mode = mode or STORY_MATCH_MODE
+    mode is "hybrid" or "vector" (default: STORY_MATCH_MODE env var, else "hybrid")."""
+    mode = mode or os.getenv("STORY_MATCH_MODE", STORY_MATCH_MODE)
     query = story_query_text(profile)
     stories = []
     if profile.industry_group != IndustryGroup.OTHER:

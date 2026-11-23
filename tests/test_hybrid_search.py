@@ -65,3 +65,14 @@ def test_hybrid_failure_falls_back_to_vector_only():
         result = build.match_story(None, None, profile, mode="hybrid")
     assert result["company"] == "Swiss Post" and result["match_mode"] == "vector"
     assert vector.called
+
+
+def test_mode_env_var_is_read_when_matching(monkeypatch):
+    profile = CompanyProfile.model_construct(
+        company="DSV", industry="Logistics", industry_group=IndustryGroup("Transport, Logistics & Travel"),
+        hq_country="Denmark", what_they_do="Freight.", situation="Growing.", signals=[])
+    monkeypatch.setenv("STORY_MATCH_MODE", "vector")
+    with mock.patch.object(build, "find_similar_stories_hybrid") as hybrid, \
+         mock.patch.object(build, "find_similar_stories", return_value=[{"company": "Swiss Post", "score": 0.8}]):
+        assert build.match_story(None, None, profile)["match_mode"] == "vector"
+    assert not hybrid.called
