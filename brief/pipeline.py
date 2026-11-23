@@ -6,13 +6,14 @@ and scripts/make_brief.py:
 """
 
 import logging
+import time
 from dataclasses import dataclass, field
 from typing import Callable
 
 from google import genai
 
-from brief.build import (ACCOUNTS_COLLECTION, SalesBrief, check_brief, match_story, save_account,
-                         score_account, write_brief)
+from brief.build import (ACCOUNTS_COLLECTION, SalesBrief, check_brief, domain_of, match_story,
+                         save_account, score_account, write_brief)
 from brief.signals import CompanyProfile, extract_signals
 from brief.story_search import COLLECTION_NAME
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,9 @@ from brief.github import read_github
 from brief.github import summary_line as github_line
 from brief.jobs import read_jobs, summary_line
 from brief.news import read_news
+from brief.passages import (CHUNKS_COLLECTION, format_passages, make_chunks, select_passages,
+                            store_chunks, wait_for_embeddings)
+from pymongo.errors import PyMongoError
 from brief.website import PAGE_CACHE_COLLECTION, read_extra_pages, read_website
 
 
@@ -43,6 +47,7 @@ class BriefResult:
     news: dict = field(default_factory=dict)  # news_summary: articles_found, articles_read
     github: dict = field(default_factory=dict)  # github_summary: org, repos_checked, files_read
     links_skipped: list[str] = field(default_factory=list)
+    passages: dict = field(default_factory=dict)  # picked (url, source, date, origin), total, note
     score: int = 0
     score_breakdown: list[dict] = field(default_factory=list)
     account: dict = field(default_factory=dict)  # The saved adr_brief.accounts document.
@@ -90,13 +95,6 @@ def build_brief(
     job_urls = {p.url for p in job_pages}  # A feed posting beats the same posting read as a web page.
     pages = [p for p in pages if p.url not in job_urls] + job_pages
 
-    # Dependency files from the company's public GitHub org, only if its pages link to one.
-    github_signals, github_pages, github, github_note = read_github(links, preferred=list(extra_urls or []))
-    if github:
-        progress(github_line(github, github_signals))
-    if github_note:
-        skipped.append(github_note)
-
     try:
         news_pages, news, news_note = news_future.result()
     except Exception as exc:  # noqa: BLE001 - news is a bonus: never lose the brief over it.
@@ -120,8 +118,40 @@ def build_brief(
             "or careers page in the extra links box."
         )
 
-    progress(f"2/5 Finding signals in {len(pages)} pages ...")
-    profile, dropped = extract_signals(gemini, company, pages)
+    # Every page goes to Atlas as chunks; Atlas embeds them while GitHub is read.
+    domain, chunk_store = domain_of(website), db[CHUNKS_COLLECTION]
+    chunks, written_at, passage_note = make_chunks(domain, pages), None, None
+    try:
+        if store_chunks(chunk_store, domain, chunks):
+            written_at = time.monotonic()
+    except PyMongoError as exc:  # Passage selection is a bonus: fall back to whole pages.
+        log.warning("Couldn't save page chunks: %s", exc)
+        chunks, passage_note = [], "Couldn't save page chunks to Atlas; Gemini read the pages directly."
+
+    # Dependency files from the company's public GitHub org, only if its pages link to one.
+    github_signals, github_pages, github, github_note = read_github(links, preferred=list(extra_urls or []))
+    if github:
+        progress(github_line(github, github_signals))
+    if github_note:
+        skipped.append(github_note)
+
+    passages = []
+    if chunks:
+        wait_for_embeddings(written_at)
+        passages, passage_note = select_passages(chunk_store, chunks, domain)
+        progress(f"Atlas picked {len(passages)} passages from {len(chunks)} chunks")
+    if passage_note:
+        progress(passage_note)
+    titles = {p.url: p.title for p in pages}
+    evidence = format_passages(passages, titles) if passages else None
+    passage_summary = {
+        "picked": [{k: p[k] for k in ("url", "source_type", "published_at", "origin", "chunks")} for p in passages],
+        "total": len(chunks),
+        "note": passage_note,
+    }
+
+    progress(f"2/5 Finding signals in {len(passages) or len(pages)} {'passages' if passages else 'pages'} ...")
+    profile, dropped = extract_signals(gemini, company, pages, evidence=evidence)
     profile.signals += github_signals  # Found in code, already checked word for word.
     if not profile.signals:
         raise BriefError(
@@ -144,7 +174,7 @@ def build_brief(
     pages_read = [p.url for p in pages + github_pages]
     account = save_account(db[ACCOUNTS_COLLECTION], website, profile, score, breakdown,
                            story, brief, warnings, pages_read, jobs=jobs, news=news,
-                           github=github)
+                           github=github, passages=passage_summary)
     return BriefResult(
         profile=profile,
         story=story,
@@ -156,6 +186,7 @@ def build_brief(
         news=news,
         github=github,
         links_skipped=skipped,
+        passages=passage_summary,
         score=score,
         score_breakdown=breakdown,
         account=account,
