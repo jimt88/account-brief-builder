@@ -72,7 +72,7 @@ vendor claims, citations, lengths), that the score equals its breakdown, and tha
 story was matched. Companies: real EMEA firms with readable websites that aren't on
 MongoDB's customer pages.
 
-| Company | Country | Signals quoted | Score (breakdown) | Matched story | Result |
+| Company | Country | Signals quoted | Score (breakdown) | Matched story (vector-only run) | Result |
 |---|---|---|---|---|---|
 | Glanbia | Ireland | 2/2 | 15 (15) | Decathlon (same industry) | PASS |
 | Bank of Ireland | Ireland | 4/4 | 50 (25+15+10) | Lombard Odier (same industry) | PASS |
@@ -81,6 +81,24 @@ MongoDB's customer pages.
 | DSV | Denmark | 3/3 | 25 (15+10) | Bolloré Logistics (same industry) | PASS |
 
 ![Pipeline page](docs/img/pipeline.png)
+
+### Vector-only vs hybrid story match
+
+`python scripts/compare_story_modes.py` re-runs only the story search for the same 5
+accounts (saved profiles and verified signals), once per mode. Ranks show where the
+hybrid winner placed in each search (meaning = Vector Search, keywords = Atlas Search).
+
+| Company | Vector-only story | Hybrid story (ranks: meaning, keywords) | Which fits better and why |
+|---|---|---|---|
+| Glanbia | Decathlon | ICA Gruppen (3, 1) | **Hybrid.** Glanbia is a food and nutrition group running a transformation programme; ICA is a food retailer that migrated off a legacy database. Decathlon (sporting goods reviews) was only a loose meaning match |
+| Bank of Ireland | Lombard Odier | Lombard Odier (1, 2) | Same. A bank scaling AI matches a bank modernising with gen AI in both searches |
+| N26 | HYPE | Lombard Odier (2, 1) | **Vector-only.** HYPE is a neobank like N26; Lombard Odier won on shared words ("digital", "banking", "transformation") but is a private bank. Keywords can pull towards a wordier story |
+| Allegro | Vestiaire Collective | Vestiaire Collective (1, 1) | Same. Online marketplace to online marketplace, first in both searches |
+| DSV | Bolloré Transport & Logistics | Bolloré Transport & Logistics (1, 1) | Same. Logistics to logistics, first in both searches |
+
+Hybrid agreed on 3 of 5, improved 1 and was worse on 1. It stays the default because
+a story ranked high on both meaning and exact words is usually the safer proof point,
+and the ranks are shown on the Brief page. Set `STORY_MATCH_MODE=vector` to switch back.
 
 ## What could break in a live demo (and what the app says)
 
@@ -101,7 +119,6 @@ instantly even if Gemini is busy during the demo.
 
 ## What's next
 
-- Hybrid search (Atlas Search keywords + Vector Search) for story matching.
 - Voyage AI embeddings (MongoDB's own models) instead of Gemini embeddings.
 - A "paste text" box for sites that block readers.
 - Change streams to notify when an account's score changes on re-run.
@@ -189,8 +206,39 @@ Test it with 3 example queries (checks result count, order, industry filter and 
 expected match; pauses between calls for the Gemini free tier):
 
 ```
-python scripts/test_story_search.py
+python scripts/test_story_search.py                # Vector Search only
+python scripts/test_story_search.py --mode hybrid  # $rankFusion
 ```
+
+### Hybrid search (Atlas Search + Vector Search with `$rankFusion`)
+
+Create the keyword index once (checks MongoDB is 8.0+ and the M0 limit of 3
+search/vector indexes; safe to re-run; waits until it is ready):
+
+```
+python scripts/create_search_index.py
+```
+
+Index `story_text_index` maps `company`, `industry`, `use_case`, `challenge`,
+`solution`, `summary` and `outcomes.claim` as text (standard analyzer), and
+`industry_group` as an exact-match `token` for filtering.
+`find_similar_stories_hybrid(collection, gemini, text, k=2, industry=None)` runs one
+aggregation:
+
+```
+$rankFusion
+  vector: $vectorSearch story_vector_index (filter industry_group)
+  text:   $search story_text_index, compound should: text over the fields,
+          filter: equals industry_group
+  combination weights: vector 1, text 1   (Reciprocal Rank Fusion)
+$limit k, $project story fields + fusion score + score details
+```
+
+The app uses it by default (`STORY_MATCH_MODE=hybrid` in `brief/build.py`; set the
+environment variable to `vector` to switch). If hybrid fails, for example the index is
+missing, it falls back to vector-only. Try both:
+`python scripts/find_story.py --mode hybrid "parcel tracking in real time"`,
+`python scripts/evaluate_accounts.py --mode vector`.
 
 ## Read a company's website and pull out signals
 
