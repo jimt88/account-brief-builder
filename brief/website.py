@@ -11,9 +11,16 @@ Rules we follow:
 You can also pass up to MAX_EXTRA_PAGES extra links (a press release, a careers
 page, a news article). These may be on other sites, but the same rules apply,
 and sites that need a login (LinkedIn, Facebook, ...) are refused.
+
+Optional page cache: pass `cache` (the adr_brief.page_cache collection) and a page
+read in the last 24 hours is taken from MongoDB instead of being downloaded again.
+A TTL index deletes cached pages after a day (scripts/setup_page_cache.py). Pages are
+only cached after robots.txt allowed them, and robots.txt is still checked before any
+real download.
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from urllib.parse import urldefrag, urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
@@ -54,6 +61,8 @@ SKIP_WORDS = [
 # Sites that hide content behind a login; we never read them.
 BLOCKED_SITES = ["linkedin.com", "facebook.com", "instagram.com", "x.com", "twitter.com", "glassdoor."]
 MAX_EXTRA_PAGES = 3
+PAGE_CACHE_COLLECTION = "page_cache"
+CACHE_SECONDS = 24 * 60 * 60  # TTL: cached pages are deleted about a day after fetched_at.
 
 SKIP_EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png", ".gif", ".zip", ".mp4", ".xml", ".svg")
 
@@ -63,6 +72,33 @@ class Page:
     url: str
     title: str
     text: str
+    cached: bool = False  # True if it came from adr_brief.page_cache, not the web.
+
+
+# ---- Page cache (adr_brief.page_cache) ----------------------------------------
+# One document per requested URL: {url, final_url, title, text, fetched_at}. The home
+# page's document also keeps `links`: the pages read after it last time, so a cached
+# re-run needs no downloads at all.
+
+def cached_page(cache, url: str) -> tuple[Page, list[str]] | None:
+    """The cached page for url (and its saved links), or None."""
+    if cache is None:
+        return None
+    doc = cache.find_one({"url": url})
+    if doc is None:
+        return None
+    return Page(doc["final_url"], doc["title"], doc["text"], cached=True), doc.get("links", [])
+
+
+def store_page(cache, url: str, page: Page, links: list[str] | None = None) -> None:
+    """Save (or refresh) one page in the cache. The TTL clock restarts at fetched_at."""
+    if cache is None:
+        return
+    doc = {"url": url, "final_url": page.url, "title": page.title, "text": page.text,
+           "fetched_at": datetime.now(timezone.utc)}
+    if links is not None:
+        doc["links"] = links
+    cache.update_one({"url": url}, {"$set": doc}, upsert=True)
 
 
 def normalise_website(website: str) -> str:
@@ -150,32 +186,51 @@ def pick_target_links(candidates: list[str]) -> list[str]:
     return picked + [u for u in candidates if u not in picked]
 
 
-def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | None = None) -> list[Page]:
+def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | None = None,
+                 cache=None) -> list[Page]:
     """Return up to max_pages public pages from the company's website.
-    If `notes` is given, a friendly line is added for each page we couldn't read."""
+    If `notes` is given, a friendly line is added for each page we couldn't read.
+    If `cache` is given, pages read in the last 24 hours come from MongoDB."""
     notes = notes if notes is not None else []
     home = normalise_website(website)
-    robots = load_robots(home)
-    if not robots.can_fetch(USER_AGENT, home):
-        raise ValueError(f"robots.txt does not allow reading {home}")
+    _robots = []
 
-    first = fetch(home)
-    if first is None:
-        raise ValueError(f"Could not open {home} (it may be down, blocked or not public).")
-    home_url, home_soup = first
+    def robots() -> RobotFileParser:
+        """robots.txt, downloaded only once something actually needs downloading."""
+        if not _robots:
+            _robots.append(load_robots(home))
+        return _robots[0]
 
-    candidates = pick_target_links(pick_links(home_soup, home_url, home_url))  # Before stripping menus.
-    pages, seen = [], {home_url.rstrip("/")}
-    if not looks_like_login(home_soup):
-        title = home_soup.title.get_text(strip=True) if home_soup.title else home_url
-        pages.append(Page(home_url, title, page_text(home_soup)[:MAX_CHARS_PER_PAGE]))
+    hit = cached_page(cache, home)
+    if hit:
+        home_page, candidates = hit
+        home_url, pages = home_page.url, [home_page]
+    else:
+        if not robots().can_fetch(USER_AGENT, home):
+            raise ValueError(f"robots.txt does not allow reading {home}")
+        first = fetch(home)
+        if first is None:
+            raise ValueError(f"Could not open {home} (it may be down, blocked or not public).")
+        home_url, home_soup = first
+        candidates = pick_target_links(pick_links(home_soup, home_url, home_url))  # Before stripping menus.
+        pages = []
+        if not looks_like_login(home_soup):
+            title = home_soup.title.get_text(strip=True) if home_soup.title else home_url
+            pages.append(Page(home_url, title, page_text(home_soup)[:MAX_CHARS_PER_PAGE]))
 
+    seen, read_links = {home_url.rstrip("/")}, []
     for url in candidates:
         if len(pages) >= max_pages:
             break
         if url in seen:
             continue
-        if not robots.can_fetch(USER_AGENT, url):
+        hit = cached_page(cache, url)
+        if hit:
+            seen.add(url)
+            pages.append(hit[0])
+            read_links.append(url)
+            continue
+        if not robots().can_fetch(USER_AGENT, url):
             notes.append(f"Skipped {url}: the site's robots.txt asks readers not to open it.")
             continue
         seen.add(url)
@@ -194,9 +249,14 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
         text = page_text(soup)
         if len(text) >= MIN_CHARS:
             pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE]))
+            store_page(cache, url, pages[-1])
+            read_links.append(url)
         else:
             notes.append(f"Skipped {url}: almost no text (it probably needs JavaScript).")
 
+    # Cache the home page with the links that worked, so next time needs no downloads.
+    if pages and not pages[0].cached and pages[0].url == home_url and len(pages[0].text) >= MIN_CHARS:
+        store_page(cache, home, pages[0], links=read_links)
     return [p for p in pages if len(p.text) >= MIN_CHARS]
 
 
@@ -205,13 +265,18 @@ def blocked_site(url: str) -> bool:
     return any(host == b or host.endswith("." + b) or (b.endswith(".") and b in host) for b in BLOCKED_SITES)
 
 
-def read_extra_pages(urls: list[str]) -> tuple[list[Page], list[str]]:
-    """Read the extra links the user pasted. Returns (pages, reasons for any skipped)."""
+def read_extra_pages(urls: list[str], cache=None) -> tuple[list[Page], list[str]]:
+    """Read the extra links the user pasted. Returns (pages, reasons for any skipped).
+    If `cache` is given, links read in the last 24 hours come from MongoDB."""
     pages, skipped = [], []
     for url in urls[:MAX_EXTRA_PAGES]:
         url = normalise_website(url)
         if blocked_site(url):
             skipped.append(f"{url}: this site needs a login, so it isn't read")
+            continue
+        hit = cached_page(cache, url)
+        if hit:
+            pages.append(hit[0])
             continue
         if not load_robots(url).can_fetch(USER_AGENT, url):
             skipped.append(f"{url}: the site's robots.txt doesn't allow reading it")
@@ -227,6 +292,7 @@ def read_extra_pages(urls: list[str]) -> tuple[list[Page], list[str]]:
             continue
         title = soup.title.get_text(strip=True) if soup.title else final_url
         pages.append(Page(final_url, title, text[:MAX_CHARS_PER_PAGE]))
+        store_page(cache, url, pages[-1])
     for url in urls[MAX_EXTRA_PAGES:]:
         skipped.append(f"{url}: only the first {MAX_EXTRA_PAGES} extra links are read")
     return pages, skipped
