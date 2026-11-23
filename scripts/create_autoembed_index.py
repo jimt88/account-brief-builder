@@ -10,8 +10,8 @@ and refuses to go over. After switching over and checking matches, run it again 
 --drop-old to delete the old Gemini-vector index (story_vector_index).
 
 Run from the project folder:  python scripts/create_autoembed_index.py [--drop-old]
-Needs MONGODB_URI in the environment or in .env. Run scripts/migrate_search_text.py
-first so every story has search_text. Safe to re-run.
+Needs MONGODB_URI in the environment or in .env. Run
+scripts/migrate_search_text.py --keep-embeddings first so every story has search_text. Safe to re-run.
 """
 
 import os
@@ -86,7 +86,7 @@ def main() -> int:
 
         missing = collection.count_documents({EMBED_PATH: {"$exists": False}})
         if missing:
-            print(f"ERROR: {missing} stories have no {EMBED_PATH}. Run scripts/migrate_search_text.py first.")
+            print(f"ERROR: {missing} stories have no {EMBED_PATH}. Run scripts/migrate_search_text.py --keep-embeddings first.")
             return 1
 
         existing = find_index(collection, INDEX_NAME)

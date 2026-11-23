@@ -18,7 +18,14 @@ from dotenv import load_dotenv
 from pymongo import MongoClient, UpdateOne
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from brief.story_search import COLLECTION_NAME, DB_NAME, STORY_VALIDATOR, search_text  # noqa: E402
+from brief.story_search import COLLECTION_NAME, DB_NAME, INDEX_NAME, STORY_VALIDATOR, search_text  # noqa: E402
+
+
+def autoembed_index_ready(stories) -> bool:
+    """True once story_autoembed_index exists and can be queried."""
+    for index in stories.list_search_indexes(INDEX_NAME):
+        return bool(index.get("queryable")) and index.get("status") == "READY"
+    return False
 
 
 def main() -> int:
@@ -41,9 +48,12 @@ def main() -> int:
         db.command("collMod", COLLECTION_NAME, validator=STORY_VALIDATOR)
         print("Validator updated: search_text required, embedding not required.")
 
+        left = stories.count_documents({"embedding": {"$exists": True}})
         if "--keep-embeddings" in sys.argv:
-            left = stories.count_documents({"embedding": {"$exists": True}})
             print(f"Kept the old embedding field ({left} stories still have it).")
+        elif left and not autoembed_index_ready(stories):
+            print(f"Kept the old embedding field ({left} stories): '{INDEX_NAME}' is not READY yet, "
+                  "so the old vector index may still be in use. Run scripts/create_autoembed_index.py first.")
         else:
             removed = stories.update_many({"embedding": {"$exists": True}}, {"$unset": {"embedding": "", "embedding_model": ""}})
             print(f"Removed the old embedding field from {removed.modified_count} stories.")
