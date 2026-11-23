@@ -45,13 +45,15 @@ def add_breakdown_types(accounts) -> int:
     accounts changed; 0 on a re-run."""
     changed = 0
     for doc in accounts.find({"score_breakdown": {"$elemMatch": {"type": {"$exists": False}}}}):
-        lines = doc["score_breakdown"]
+        lines = [dict(line) for line in doc["score_breakdown"]]
         for line in lines:
             if "type" not in line:
                 line["type"] = next((t.value for t, label in SIGNAL_LABELS.items()
                                      if line["reason"] == f"{label} signal"), "emea_hq")
-        accounts.update_one({"_id": doc["_id"]}, {"$set": {"score_breakdown": lines}})
-        changed += 1
+        # Only write if the breakdown is unchanged, so a rebuild saved meanwhile wins.
+        result = accounts.update_one({"_id": doc["_id"], "score_breakdown": doc["score_breakdown"]},
+                                     {"$set": {"score_breakdown": lines}})
+        changed += result.modified_count
     return changed
 
 
