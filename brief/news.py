@@ -21,7 +21,7 @@ from urllib.parse import quote_plus, urlparse
 
 import requests
 
-from brief.website import (MAX_CHARS_PER_PAGE, MIN_CHARS, USER_AGENT, Page, blocked_site, cached_page,
+from brief.website import (LOGIN_WALL_CHARS, MAX_CHARS_PER_PAGE, MIN_CHARS, USER_AGENT, Page, blocked_site, cached_page,
                            fetch, load_robots, looks_like_login, page_text, store_page)
 
 GDELT_URL = ("https://api.gdeltproject.org/api/v2/doc/doc?query={query}&mode=ArtList&format=json"
@@ -101,10 +101,9 @@ def read_article(article: dict, cache=None) -> Page | None:
     if result is None:
         return None
     final_url, soup = result
-    if looks_like_login(soup):  # Before page_text(), which removes forms.
-        return None
+    login = looks_like_login(soup)  # Before page_text(), which removes forms.
     text = page_text(soup)
-    if len(text) < MIN_CHARS:
+    if (login and len(text) < LOGIN_WALL_CHARS) or len(text) < MIN_CHARS:
         return None
     page = Page(final_url, article["title"], text[:MAX_CHARS_PER_PAGE], source_type="news",
                 published_at=article["published_at"], source_label=f"News: {article['domain']}")

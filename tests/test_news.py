@@ -133,3 +133,33 @@ def test_redirect_to_a_private_address_is_refused():
     assert calls == ["https://news.example.ie/boi-ai"]
     assert website.private_host("http://127.0.0.1/") and website.private_host("http://localhost/")
     assert not website.private_host("http://8.8.8.8/")
+
+
+def test_article_with_an_optional_sign_in_box_is_still_read():
+    html = ('<form><input type="password"></form><p>'
+            + "Bank of Ireland said its new AI assistant now helps 10,000 staff answer questions. " * 30 + "</p>")
+    with mock.patch.object(news.requests, "get",
+                           side_effect=lambda url, **kw: FakeResponse(url, status=404 if "robots" in url else 200,
+                                                                      text=html)):
+        assert news.read_article(ARTICLE).source_type == "news"
+
+
+def test_redirect_keeps_cookies_and_decodes_utf8_location():
+    from brief import website
+    seen = []
+
+    class Hop(FakeResponse):
+        def __init__(self, url, location=None):
+            super().__init__(url, text="<p>" + "Public article text here. " * 20 + "</p>",
+                             status=302 if location else 200)
+            if location:
+                self.headers["Location"] = location
+            self.cookies = {"consent": "yes"} if location else {}
+
+    def get(url, **kwargs):
+        seen.append((url, dict(kwargs["cookies"])))
+        return Hop(url, "/caf\u00c3\u00a9" if len(seen) == 1 else None)  # UTF-8 bytes read as latin-1.
+    with mock.patch.object(website.requests, "get", side_effect=get):
+        final_url, _ = website.fetch("HTTPS://news.example.ie/start")
+    assert final_url == "https://news.example.ie/caf\u00e9"
+    assert seen[1] == ("https://news.example.ie/caf\u00e9", {"consent": "yes"})

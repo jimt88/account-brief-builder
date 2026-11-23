@@ -45,6 +45,7 @@ TARGET_PAGES = {
 }
 MAX_CHARS_PER_PAGE = 8_000  # Keeps the Gemini prompt small (free tier).
 MIN_CHARS = 200  # Less text than this usually means a JavaScript-only page.
+LOGIN_WALL_CHARS = 1_500  # A password box with less text than this is a login wall, not an article.
 
 # Words in a link (URL or link text) that suggest the page has useful signals.
 # Includes a few common German/French/Spanish/Italian/Dutch equivalents.
@@ -168,18 +169,24 @@ def public_get(url: str):
     """requests.get that follows up to MAX_REDIRECTS redirects itself and refuses any
     hop to a non-public address, so a page can't redirect the app to internal services.
     Returns the response (its .url is the final URL), or None."""
+    cookies = requests.cookies.RequestsCookieJar()  # Some sites set a cookie on the redirect.
     for _ in range(MAX_REDIRECTS + 1):
-        if not url.startswith(("http://", "https://")) or private_host(url):
+        if urlparse(url).scheme.lower() not in ("http", "https") or private_host(url):
             return None
         try:
             response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS,
-                                    allow_redirects=False)
+                                    allow_redirects=False, cookies=cookies)
         except requests.RequestException:
             return None
         location = getattr(response, "headers", {}).get("Location")
         if response.status_code not in (301, 302, 303, 307, 308) or not location:
             response.url = url
             return response
+        cookies.update(getattr(response, "cookies", None) or {})
+        try:
+            location = location.encode("latin1").decode("utf8")  # As requests does: headers arrive as latin-1.
+        except UnicodeError:
+            pass
         url = urljoin(url, location)
     return None
 
@@ -373,7 +380,7 @@ def read_extra_pages(urls: list[str], cache=None,
         links = outside_links(soup, final_url)
         login = looks_like_login(soup)  # Before page_text(), which removes forms.
         text = page_text(soup)
-        if login or len(text) < MIN_CHARS:
+        if (login and len(text) < LOGIN_WALL_CHARS) or len(text) < MIN_CHARS:
             if links_out is not None:
                 links_out += links
             skipped.append(f"{url}: no readable text (login page or needs JavaScript)")
