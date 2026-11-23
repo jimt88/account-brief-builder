@@ -122,7 +122,10 @@ class FakeCache:
         return doc if doc and doc["fetched_at"] >= query["fetched_at"]["$gte"] else None
 
     def update_one(self, query, update, upsert=False):
-        self.docs.setdefault(query["url"], {}).update(update["$set"])
+        doc = self.docs.setdefault(query["url"], {})
+        doc.update(update["$set"])
+        for field in update.get("$unset", {}):
+            doc.pop(field, None)
 
 
 def test_uncached_pages_are_stored_in_the_cache():
@@ -169,3 +172,12 @@ def test_home_cached_as_extra_link_still_finds_sub_pages():
         read_extra_pages(["https://example.com"], cache=cache)  # Cached without links.
         pages = read_website("example.com", cache=cache)
     assert [p.url for p in pages] == ["https://example.com", "https://example.com/about"]
+
+
+def test_refreshing_home_as_extra_link_drops_its_old_links():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_website("example.com", cache=cache)
+        cache.docs["https://example.com"]["fetched_at"] -= website.timedelta(seconds=website.CACHE_SECONDS + 1)
+        read_extra_pages(["https://example.com"], cache=cache)
+    assert "links" not in cache.docs["https://example.com"]

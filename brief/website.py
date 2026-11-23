@@ -99,9 +99,12 @@ def store_page(cache, url: str, page: Page, links: list[str] | None = None) -> N
         return
     doc = {"url": url, "final_url": page.url, "title": page.title, "text": page.text,
            "fetched_at": datetime.now(timezone.utc)}
-    if links is not None:
+    update = {"$set": doc}
+    if links is None:
+        update["$unset"] = {"links": ""}  # Old links would be stale; re-read as a home page next time.
+    else:
         doc["links"] = links
-    cache.update_one({"url": url}, {"$set": doc}, upsert=True)
+    cache.update_one({"url": url}, update, upsert=True)
 
 
 def normalise_website(website: str) -> str:
