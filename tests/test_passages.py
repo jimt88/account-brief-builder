@@ -140,3 +140,12 @@ def test_keyword_fallback_when_atlas_is_still_indexing_or_fails():
     assert [p["origin"] for p in picked] == ["added", "keyword"]
     picked, note = select_passages(FakeChunks(fail=True), chunks, "a.com")
     assert "unavailable" in note and len(picked) == 2
+
+
+def test_chunks_match_the_page_chunks_validator():
+    schema = passages.CHUNK_VALIDATOR["$jsonSchema"]
+    chunks = make_chunks("a.com", [page("https://a.com"), page("https://news.test/a", "news", date=DATE)])
+    for c in chunks:
+        assert set(schema["required"]) <= set(c) and set(c) <= set(schema["properties"])
+        assert c["source_type"] in schema["properties"]["source_type"]["enum"]
+        assert 0 < len(c["text"]) <= schema["properties"]["text"]["maxLength"]

@@ -43,6 +43,29 @@ PASSAGES = 15
 SOURCE_MINIMUMS = {"job": 3, "news": 2}
 CHUNKED_SOURCES = {"website", "extra_link", "job", "news"}
 
+CHUNK_VALIDATOR = {
+    "$jsonSchema": {
+        "bsonType": "object",
+        "required": ["domain", "url", "source_type", "chunk_index", "text", "fetched_at"],
+        "properties": {
+            "domain": {"bsonType": "string", "minLength": 1},
+            "url": {"bsonType": "string", "minLength": 1},
+            "source_type": {"enum": sorted(CHUNKED_SOURCES)},
+            "published_at": {"bsonType": ["date", "null"]},
+            "chunk_index": {"bsonType": "int", "minimum": 0},
+            "text": {"bsonType": "string", "minLength": 1, "maxLength": CHUNK_CHARS},
+            "fetched_at": {"bsonType": "date"},
+        },
+    }
+}
+CHUNK_INDEX_DEFINITION = {
+    "fields": [
+        {"type": "autoEmbed", "modality": "text", "path": "text", "model": "voyage-4"},
+        {"type": "filter", "path": "domain"},
+        {"type": "filter", "path": "source_type"},
+    ]
+}
+
 INTENT_QUERY = (
     "Replacing or migrating legacy or relational databases; AI, generative AI or machine "
     "learning initiatives; scaling real-time, streaming or event-driven data; cloud "

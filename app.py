@@ -159,6 +159,27 @@ def score_colour(score: int) -> str:
 
 # ---- Brief (built from the saved account document) --------------------------
 
+
+PASSAGE_ORIGINS = {"vector": "Vector Search", "keyword": "keyword scan", "both": "Vector Search + keywords",
+                   "added": "added (home page or source mix)"}
+
+
+def show_passages(passages: dict | None) -> None:
+    """The chunks Atlas chose for Gemini (brief/passages.py), if this brief used them."""
+    if not passages or not passages.get("picked"):
+        return
+    picked = passages["picked"]
+    with st.expander(f"Passages Atlas picked for Gemini ({len(picked)} of {passages['total']})"):
+        if passages.get("note"):
+            st.caption(passages["note"])
+        rows = [{"Source": p["source_type"].replace("_", " ").title(),
+                 "Date": p["published_at"].strftime("%Y-%m-%d") if p.get("published_at") else "",
+                 "Picked by": PASSAGE_ORIGINS.get(p["origin"], p["origin"]),
+                 "URL": p["url"]} for p in picked]
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                     column_config={"URL": st.column_config.LinkColumn("URL")})
+
+
 def brief_as_markdown(a: dict) -> str:
     b, s, p = a["brief"], a["matched_story"], a["profile"]
     lines = [
@@ -250,6 +271,7 @@ def show_brief(a: dict) -> None:
                 st.markdown(f"**{n}. {label(x['type'])}**{used}")
                 st.html(f'<div class="abb-quote">"{html.escape(x["quote"])}"</div>')
                 st.markdown(f"[Source]({x['source_url']})")
+        show_passages(a.get("passages"))
 
     with story:
         with st.container(border=True):
