@@ -210,6 +210,9 @@ def test_competitor_database_quote_must_name_a_database():
     other = Page(url="https://acme.com", title="Acme", text="Orders are stored in Vitess across three regions.")
     assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=other.text, source_url=other.url,
                                   technology="Vitess")], [other])[0].technology == "Vitess"
+    stream = Page(url="https://acme.com/s", title="Acme", text="Every payment flows through Kafka and MongoDB Atlas.")
+    assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=stream.text, source_url=stream.url,
+                                  technology=tech) for tech in ("Kafka", "MongoDB")], [stream]) == []
 
 
 def test_pages_are_labelled_with_source_and_date():
