@@ -143,3 +143,13 @@ def test_token_is_sent_when_set(monkeypatch):
     assert github.Budget().headers["Authorization"] == "Bearer test-token"
     monkeypatch.delenv("GITHUB_TOKEN")
     assert "Authorization" not in github.Budget().headers
+
+
+def test_commented_and_metadata_entries_are_not_dependencies():
+    pom = "<!-- <artifactId>kafka-clients</artifactId> -->\n<!--\n<artifactId>ojdbc11</artifactId>\n-->\n"
+    gradle = "// implementation 'org.apache.kafka:kafka-clients:3.7.0'\n/*\nimplementation 'redis.clients:jedis:5'\n*/\n"
+    toml = ('[project]\nname = "redis-tools"\ndependencies = [\n  # "kafka-python",\n  "pymongo>=4",\n]\n'
+            '[tool.ruff]\nredis = "x"\n[tool.poetry.dependencies]\npython = "^3.11"\nopenai = "^1"\n')
+    assert dependency_signals("pom.xml", pom, "https://github.com/a/b/blob/main/f", None) == []
+    assert dependency_signals("build.gradle", gradle, "https://github.com/a/b/blob/main/f", None) == []
+    assert {s.technology for s in dependency_signals("pyproject.toml", toml, "https://github.com/a/b/blob/main/f", None)} == {"MongoDB", "AI/LLM"}

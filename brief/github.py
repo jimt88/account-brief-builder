@@ -98,6 +98,51 @@ def technology_of(name: str, file_text: str = "") -> str | None:
     return None
 
 
+def uncommented(lines: list[str], start: str, end: str) -> list[str]:
+    """Lines that are not inside a block comment (<!-- --> or /* */)."""
+    kept, inside = [], False
+    for line in lines:
+        if inside:
+            inside = end not in line
+            continue
+        if line.lstrip().startswith(start):
+            inside = end not in line
+            continue
+        kept.append(line)
+    return kept
+
+
+TOML_NAME = r"[A-Za-z0-9][A-Za-z0-9._\-\[\]]*"
+
+
+def pyproject_lines(lines: list[str]) -> list[tuple[str, str]]:
+    """Dependencies in pyproject.toml: the [project] dependencies array, optional
+    dependencies, dependency groups and Poetry's "name = version" tables. Other
+    tables (metadata, tool settings) and # comments are ignored."""
+    found, section, in_array = [], "", False
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        header = re.fullmatch(r"\[+([^\]]+)\]+", stripped)
+        if header and not in_array:
+            section = header.group(1).strip()
+            continue
+        deps_table = section.endswith("dependencies") or section == "dependency-groups"
+        opens = re.match(r"([\w.\-]+)\s*=\s*\[", stripped)
+        if opens and not in_array and (deps_table or (section == "project" and opens.group(1) == "dependencies")):
+            in_array, stripped = True, stripped[opens.end():]
+        if in_array:
+            for match in re.finditer(rf'"({TOML_NAME})', stripped.split("#")[0]):
+                found.append((match.group(1), line))
+            in_array = "]" not in stripped.split("#")[0]
+        elif deps_table and section != "dependency-groups":
+            match = re.match(r"([A-Za-z0-9][A-Za-z0-9._\-]*)\s*=", stripped)
+            if match and match.group(1) != "python":
+                found.append((match.group(1), line))
+    return found
+
+
 def dependency_lines(filename: str, text: str) -> list[tuple[str, str]]:
     """(dependency name, the exact line it is declared on) for one manifest."""
     found = []
@@ -120,17 +165,15 @@ def dependency_lines(filename: str, text: str) -> list[tuple[str, str]]:
             if match and not line.lstrip().startswith(("#", "-")):
                 found.append((match.group(1), line))
     elif filename == "pyproject.toml":
-        for line in lines:
-            match = re.match(r'\s*"([A-Za-z0-9][A-Za-z0-9._\-\[\]]*)', line) or re.match(
-                r"\s*([A-Za-z0-9][A-Za-z0-9._\-]*)\s*=", line)
-            if match:
-                found.append((match.group(1), line))
+        found = pyproject_lines(lines)
     elif filename == "pom.xml":
-        for line in lines:
+        for line in uncommented(lines, "<!--", "-->"):
             for match in re.finditer(r"<(?:artifactId|groupId)>\s*([\w.\-]+)\s*</", line):
                 found.append((match.group(1), line))
     elif filename.startswith("build.gradle"):
-        for line in lines:
+        for line in uncommented(lines, "/*", "*/"):
+            if line.lstrip().startswith("//"):
+                continue
             for match in re.finditer(r"""["']([\w.\-]+):([\w.\-]+)(?::[^"']*)?["']""", line):
                 found += [(match.group(1), line), (match.group(2), line)]
     elif filename == "go.mod":
