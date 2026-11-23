@@ -6,7 +6,8 @@ For each company:
   - the score equals the breakdown total (capped at 100),
   - a customer story was matched (and whether it was in the same industry).
 
-Run from the project folder:  python scripts/evaluate_accounts.py
+Run from the project folder:  python scripts/evaluate_accounts.py [--mode vector|hybrid] [company ...]
+(--mode defaults to STORY_MATCH_MODE, i.e. hybrid.)
 Pauses between companies to stay inside the Gemini free-tier rate limit.
 """
 
@@ -52,14 +53,20 @@ def main() -> int:
     load_dotenv()
     db = MongoClient(os.environ["MONGODB_URI"], serverSelectionTimeoutMS=10_000, appname="account-brief")[DB_NAME]
     gemini = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-    only = [a.lower() for a in sys.argv[1:]]
+    args = sys.argv[1:]
+    mode = None
+    if "--mode" in args:
+        i = args.index("--mode")
+        mode, args = args[i + 1], args[:i] + args[i + 2:]
+    only = [a.lower() for a in args]
     rows = []
     for company, website in COMPANIES:
         if only and company.lower() not in only:
             continue
         print(f"\n=== {company} ({website}) ===", flush=True)
         try:
-            r = build_brief(company, website, db, gemini, progress=lambda m: print("  " + m, flush=True))
+            r = build_brief(company, website, db, gemini, progress=lambda m: print("  " + m, flush=True),
+                            match_mode=mode)
         except BriefError as exc:
             rows.append((company, "ERROR", str(exc)))
             continue
@@ -70,7 +77,8 @@ def main() -> int:
         rows.append((company, "PASS" if ok else "FAIL",
                      f"signals {found}/{len(r.profile.signals)} quoted | score {r.score} "
                      f"({'+'.join(str(x['points']) for x in r.score_breakdown) or '0'}) | "
-                     f"story {r.story['company']} ({'same industry' if same_industry else 'any industry'}, "
+                     f"story {r.story['company']} [{r.story.get('match_mode')}] "
+                     f"({'same industry' if same_industry else 'any industry'}, "
                      f"{r.story['score']:.2f}) | warnings {len(r.warnings)}"))
         for w in r.warnings:
             print(f"  WARNING: {w}")

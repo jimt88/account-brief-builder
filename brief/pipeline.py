@@ -42,9 +42,11 @@ def build_brief(
     gemini: genai.Client,
     progress: Callable[[str], None] = lambda message: None,
     extra_urls: list[str] | None = None,
+    match_mode: str | None = None,
 ) -> BriefResult:
     """Run every step for one company and save it. `db` is the adr_brief database.
-    `progress` is called with a short message per step."""
+    `progress` is called with a short message per step. `match_mode` is "hybrid" or
+    "vector" (default: STORY_MATCH_MODE in brief/build.py)."""
     progress(f"1/5 Reading {website} ...")
     site_problem, notes = None, []
     cache = db[PAGE_CACHE_COLLECTION]
@@ -81,7 +83,7 @@ def build_brief(
     score, breakdown = score_account(profile)
 
     progress("3/5 Finding the closest MongoDB customer story ...")
-    story = match_story(db[COLLECTION_NAME], gemini, profile)
+    story = match_story(db[COLLECTION_NAME], gemini, profile, mode=match_mode)
     if story is None:
         raise BriefError("No customer story found. Has scripts/create_vector_index.py been run?")
 

@@ -8,7 +8,8 @@ customer story found with **Atlas Vector Search**. Accounts are scored, saved an
 in MongoDB, so it works as a small prospecting pipeline for an ADR.
 
 It's built on MongoDB Atlas because the operational data and the vectors live in one
-database, so there is no separate vector store to keep in sync.
+database, and so does full-text search (Atlas Search), so there is no separate vector
+store or search engine to keep in sync.
 
 ![Brief page](docs/img/brief.png)
 
@@ -22,7 +23,7 @@ flowchart LR
     G1 --> V{Quote on the page<br/>word for word?}
     V -- no --> X[Dropped]
     V -- yes --> S[Score 0-100<br/>with breakdown]
-    S --> VS[(Atlas Vector Search<br/>stories, industry filter)]
+    S --> VS[(Hybrid story match: $rankFusion of<br/>Atlas Vector Search + Atlas Search<br/>industry filter on both)]
     VS --> G2[Gemini: brief from<br/>verified evidence only]
     G2 --> C[Checks: numbers,<br/>vendors, lengths]
     C --> A[(adr_brief.accounts<br/>upsert + history)]
@@ -40,6 +41,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 |---|---|---|
 | **Atlas M0 (free)** | `adr_brief` database | Fully managed; free to start |
 | **Document model** | One document per account (signals, score breakdown, brief, matched story, history embedded) and per story (outcomes embedded) | Data read together is stored together: one read renders a whole brief, no joins |
+| **Atlas Search + `$rankFusion` (hybrid search)** | `story_text_index` on the story text fields (`industry_group` as `token`), fused with the vector search in `find_similar_stories_hybrid()` | Keyword matches (e.g. "parcels", "payments") and meaning are ranked together with Reciprocal Rank Fusion, both pre-filtered to the industry. Default `STORY_MATCH_MODE=hybrid`; falls back to vector-only if the keyword index is missing. Needs MongoDB 8.0+ |
 | **Atlas Vector Search + filter** | `story_vector_index` on `stories.embedding` (768 dims, cosine) with `industry_group` as a filter field | Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data (no separate vector DB) |
 | **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal and its quote with `$filter` + `$first`) and `$vectorSearch` | Ranking and shaping happen on the server |
 | **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, wrong embedding size) |
@@ -56,7 +58,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
   Gemini calls plus 1 embedding; the app retries on "busy" errors (429/503) with
   increasing waits. If the daily cap is hit, try again later.
 - **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts.
-  Up to 3 search/vector indexes on M0; this app uses 1.
+  Up to 3 search/vector indexes on M0; this app uses 2 (`story_vector_index`, `story_text_index`).
 - **Streamlit Community Cloud:** the app sleeps after a period without visitors;
   the first load after that takes about 30 seconds.
 - **Websites:** some sites block automated readers (e.g. openai.com returns 403) or only
@@ -70,7 +72,7 @@ vendor claims, citations, lengths), that the score equals its breakdown, and tha
 story was matched. Companies: real EMEA firms with readable websites that aren't on
 MongoDB's customer pages.
 
-| Company | Country | Signals quoted | Score (breakdown) | Matched story | Result |
+| Company | Country | Signals quoted | Score (breakdown) | Matched story (vector-only run) | Result |
 |---|---|---|---|---|---|
 | Glanbia | Ireland | 2/2 | 15 (15) | Decathlon (same industry) | PASS |
 | Bank of Ireland | Ireland | 4/4 | 50 (25+15+10) | Lombard Odier (same industry) | PASS |
@@ -79,6 +81,24 @@ MongoDB's customer pages.
 | DSV | Denmark | 3/3 | 25 (15+10) | Bolloré Logistics (same industry) | PASS |
 
 ![Pipeline page](docs/img/pipeline.png)
+
+### Vector-only vs hybrid story match
+
+`python scripts/compare_story_modes.py` re-runs only the story search for the same 5
+accounts (saved profiles and verified signals), once per mode. Ranks show where the
+hybrid winner placed in each search (meaning = Vector Search, keywords = Atlas Search).
+
+| Company | Vector-only story | Hybrid story (ranks: meaning, keywords) | Which fits better and why |
+|---|---|---|---|
+| Glanbia | Decathlon | ICA Gruppen (3, 1) | **Hybrid.** Glanbia is a food and nutrition group running a transformation programme; ICA is a food retailer that migrated off a legacy database. Decathlon (sporting goods reviews) was only a loose meaning match |
+| Bank of Ireland | Lombard Odier | Lombard Odier (1, 2) | Same. A bank scaling AI matches a bank modernising with gen AI in both searches |
+| N26 | HYPE | Lombard Odier (2, 1) | **Vector-only.** HYPE is a neobank like N26; Lombard Odier won on shared words ("digital", "banking", "transformation") but is a private bank. Keywords can pull towards a wordier story |
+| Allegro | Vestiaire Collective | Vestiaire Collective (1, 1) | Same. Online marketplace to online marketplace, first in both searches |
+| DSV | Bolloré Transport & Logistics | Bolloré Transport & Logistics (1, 1) | Same. Logistics to logistics, first in both searches |
+
+Hybrid agreed on 3 of 5, improved 1 and was worse on 1. It stays the default because
+a story ranked high on both meaning and exact words is usually the safer proof point,
+and the ranks are shown on the Brief page. Set `STORY_MATCH_MODE=vector` to switch back.
 
 ## What could break in a live demo (and what the app says)
 
@@ -99,7 +119,6 @@ instantly even if Gemini is busy during the demo.
 
 ## What's next
 
-- Hybrid search (Atlas Search keywords + Vector Search) for story matching.
 - Voyage AI embeddings (MongoDB's own models) instead of Gemini embeddings.
 - A "paste text" box for sites that block readers.
 - Change streams to notify when an account's score changes on re-run.
@@ -187,8 +206,39 @@ Test it with 3 example queries (checks result count, order, industry filter and 
 expected match; pauses between calls for the Gemini free tier):
 
 ```
-python scripts/test_story_search.py
+python scripts/test_story_search.py                # Vector Search only
+python scripts/test_story_search.py --mode hybrid  # $rankFusion
 ```
+
+### Hybrid search (Atlas Search + Vector Search with `$rankFusion`)
+
+Create the keyword index once (checks MongoDB is 8.0+ and the M0 limit of 3
+search/vector indexes; safe to re-run; waits until it is ready):
+
+```
+python scripts/create_search_index.py
+```
+
+Index `story_text_index` maps `company`, `industry`, `use_case`, `challenge`,
+`solution`, `summary` and `outcomes.claim` as text (standard analyzer), and
+`industry_group` as an exact-match `token` for filtering.
+`find_similar_stories_hybrid(collection, gemini, text, k=2, industry=None)` runs one
+aggregation:
+
+```
+$rankFusion
+  vector: $vectorSearch story_vector_index (filter industry_group)
+  text:   $search story_text_index, compound should: text over the fields,
+          filter: equals industry_group
+  combination weights: vector 1, text 1   (Reciprocal Rank Fusion)
+$limit k, $project story fields + fusion score + score details
+```
+
+The app uses it by default (`STORY_MATCH_MODE=hybrid` in `brief/build.py`; set the
+environment variable to `vector` to switch). If hybrid fails, for example the index is
+missing, it falls back to vector-only. Try both:
+`python scripts/find_story.py --mode hybrid "parcel tracking in real time"`,
+`python scripts/evaluate_accounts.py --mode vector`.
 
 ## Read a company's website and pull out signals
 
@@ -305,7 +355,8 @@ phone-friendly:
 
 One-time database setup (run locally with an admin connection string):
 `scripts/build_story_library.py`, `scripts/tag_story_industries.py`,
-`scripts/create_vector_index.py`, `scripts/setup_accounts.py`, `scripts/setup_page_cache.py`.
+`scripts/create_vector_index.py`, `scripts/create_search_index.py`, `scripts/setup_accounts.py`,
+`scripts/setup_page_cache.py`.
 
 Before publishing, the repo was checked with [gitleaks](https://github.com/gitleaks/gitleaks)
 (`gitleaks git .` and `gitleaks dir .`): no leaks found.
