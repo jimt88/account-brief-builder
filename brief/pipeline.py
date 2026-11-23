@@ -72,8 +72,8 @@ def build_brief(
         progress(summary_line(jobs) + (" (cached)" if job_pages and job_pages[0].cached else ""))
     if job_note:
         skipped.append(job_note)
-    seen = {p.url for p in pages}
-    pages += [p for p in job_pages if p.url not in seen]
+    job_urls = {p.url for p in job_pages}  # A feed posting beats the same posting read as a web page.
+    pages = [p for p in pages if p.url not in job_urls] + job_pages
     for note in skipped:
         progress(note)
 
