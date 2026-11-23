@@ -390,7 +390,8 @@ def page_how_it_works() -> None:
 **The flow**
 
 1. **Read public pages.** Home, About, Careers and the engineering blog (max 4 pages,
-   10 s each). Respects robots.txt; never logs in; no LinkedIn or paywalls.
+   10 s each). Respects robots.txt; never logs in; no LinkedIn or paywalls. Pages read
+   in the last 24 hours come from a MongoDB cache instead of the web.
 2. **Find signals.** Gemini lists signals (AI initiative, hiring engineers, legacy
    database, modernisation, scale or real time, new market or product), each with a
    quote. **Any quote that isn't word for word on the page is dropped.**
@@ -412,6 +413,7 @@ def page_how_it_works() -> None:
 | Aggregation pipeline | Pipeline page | Sorts and shapes accounts on the server |
 | Schema validation | `stories`, `accounts` | Flexible documents, but bad data (e.g. a score of 150) is rejected |
 | Unique indexes | `stories.source_url`, `accounts.domain` | Re-running never creates duplicates |
+| TTL index | `page_cache.fetched_at` | Cached pages are deleted by MongoDB about 24 hours after download (the TTL monitor runs about once a minute), so re-runs are fast and polite |
 | Atomic pipeline upsert | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) archives the old version inside the same write (last 5 kept), so two rebuilds at once can't lose or duplicate a brief |
 | PyMongo driver | Everywhere | The supported way to connect (no Data API) |
 """)
