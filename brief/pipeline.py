@@ -14,7 +14,7 @@ from brief.build import (ACCOUNTS_COLLECTION, SalesBrief, check_brief, match_sto
                          score_account, write_brief)
 from brief.signals import CompanyProfile, extract_signals
 from brief.story_search import COLLECTION_NAME
-from brief.website import read_extra_pages, read_website
+from brief.website import PAGE_CACHE_COLLECTION, read_extra_pages, read_website
 
 
 class BriefError(Exception):
@@ -47,16 +47,19 @@ def build_brief(
     `progress` is called with a short message per step."""
     progress(f"1/5 Reading {website} ...")
     site_problem, notes = None, []
+    cache = db[PAGE_CACHE_COLLECTION]
     try:
-        pages = read_website(website, notes=notes)
+        pages = read_website(website, notes=notes, cache=cache)
     except ValueError as exc:  # Site down, blocked or robots.txt says no.
         pages, site_problem = [], str(exc)
 
     # Extra links the user pasted (e.g. a press release) help when the site is thin.
-    extra_pages, skipped = read_extra_pages(extra_urls or [])
+    extra_pages, skipped = read_extra_pages(extra_urls or [], cache=cache)
     seen = {p.url for p in pages}
     pages += [p for p in extra_pages if p.url not in seen]
     skipped = notes + [f"Skipped {reason}" for reason in skipped]
+    for page in pages:
+        progress(f"Read {page.url}" + (" (cached)" if page.cached else ""))
     for note in skipped:
         progress(note)
 

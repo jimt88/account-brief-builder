@@ -17,6 +17,7 @@ database, so there is no separate vector store to keep in sync.
 ```mermaid
 flowchart LR
     U[ADR in the browser<br/>Streamlit + passcode] --> R[Read up to 4 public pages<br/>robots.txt, 10 s timeout]
+    R <--> PC[(adr_brief.page_cache<br/>TTL 24 h)]
     R --> G1[Gemini: signals<br/>type + quote + URL]
     G1 --> V{Quote on the page<br/>word for word?}
     V -- no --> X[Dropped]
@@ -41,6 +42,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 | **Atlas Vector Search + filter** | `story_vector_index` on `stories.embedding` (768 dims, cosine) with `industry_group` as a filter field | Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data (no separate vector DB) |
 | **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal and its quote with `$filter` + `$first`) and `$vectorSearch` | Ranking and shaping happen on the server |
 | **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, wrong embedding size) |
+| **TTL index** | `page_cache.fetched_at` (`expireAfterSeconds: 86400`), plus a unique `url` index and `$jsonSchema` | Pages read in the last 24 hours come from MongoDB instead of the web, so re-running an account is faster and kinder to the company's site. MongoDB deletes old pages itself; the TTL monitor runs about once a minute, so removal is not instant |
 | **Unique indexes** | `stories.source_url`, `accounts.domain` | Re-running never duplicates; plus a `score` index for the ranked view |
 | **Atomic pipeline upsert** | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) writes the new brief and archives the old version inside the same write, keeping the last 5. Two concurrent rebuilds can't lose or duplicate a brief |
 | **PyMongo driver** | Everywhere | The supported way to connect (the Atlas Data API is end of life) |
@@ -220,6 +222,7 @@ python -m pytest -q
 
 ```
 python scripts/setup_accounts.py      # once: creates adr_brief.accounts
+python scripts/setup_page_cache.py    # once: creates adr_brief.page_cache (TTL 24 h)
 python scripts/make_brief.py "Ocado Group" ocadogroup.com
 ```
 
@@ -300,7 +303,7 @@ phone-friendly:
 
 One-time database setup (run locally with an admin connection string):
 `scripts/build_story_library.py`, `scripts/tag_story_industries.py`,
-`scripts/create_vector_index.py`, `scripts/setup_accounts.py`.
+`scripts/create_vector_index.py`, `scripts/setup_accounts.py`, `scripts/setup_page_cache.py`.
 
 Before publishing, the repo was checked with [gitleaks](https://github.com/gitleaks/gitleaks)
 (`gitleaks git .` and `gitleaks dir .`): no leaks found.

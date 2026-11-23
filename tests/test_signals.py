@@ -109,3 +109,75 @@ def test_parent_company_folder_is_not_mistaken_for_about():
     assert pick_target_links(links)[:3] == [
         "https://example.com/company/about-us", "https://example.com/company/careers",
         "https://example.com/engineering"]
+
+
+class FakeCache:
+    """A dict-backed stand-in for the page_cache collection."""
+
+    def __init__(self):
+        self.docs = {}
+
+    def find_one(self, query):
+        doc = self.docs.get(query["url"])
+        return doc if doc and doc["fetched_at"] >= query["fetched_at"]["$gte"] else None
+
+    def update_one(self, query, update, upsert=False):
+        doc = self.docs.setdefault(query["url"], {})
+        doc.update(update["$set"])
+        for field in update.get("$unset", {}):
+            doc.pop(field, None)
+
+
+def test_uncached_pages_are_stored_in_the_cache():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        pages = read_website("example.com", cache=cache)
+    assert not any(p.cached for p in pages)
+    assert set(cache.docs) == {"https://example.com", "https://example.com/about"}
+    assert cache.docs["https://example.com"]["links"] == ["https://example.com/about"]
+    assert cache.docs["https://example.com/about"]["fetched_at"].tzinfo is not None
+
+
+def test_cached_pages_skip_every_download():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        first = read_website("example.com", cache=cache)
+    with mock.patch.object(website.requests, "get", side_effect=AssertionError("no downloads")) as get:
+        again = read_website("example.com", cache=cache)
+    assert get.call_count == 0  # not even robots.txt
+    assert [(p.url, p.text) for p in again] == [(p.url, p.text) for p in first]
+    assert all(p.cached for p in again)
+
+
+def test_cached_extra_link_is_not_downloaded():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_extra_pages(["https://example.com/about"], cache=cache)
+    with mock.patch.object(website.requests, "get", side_effect=AssertionError("no downloads")):
+        pages, skipped = read_extra_pages(["https://example.com/about"], cache=cache)
+    assert [p.cached for p in pages] == [True] and skipped == []
+
+
+def test_expired_pages_are_ignored_before_ttl_deletes_them():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_extra_pages(["https://example.com/about"], cache=cache)
+    cache.docs["https://example.com/about"]["fetched_at"] -= website.timedelta(seconds=website.CACHE_SECONDS + 1)
+    assert website.cached_page(cache, "https://example.com/about") is None
+
+
+def test_home_cached_as_extra_link_still_finds_sub_pages():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_extra_pages(["https://example.com"], cache=cache)  # Cached without links.
+        pages = read_website("example.com", cache=cache)
+    assert [p.url for p in pages] == ["https://example.com", "https://example.com/about"]
+
+
+def test_refreshing_home_as_extra_link_drops_its_old_links():
+    cache = FakeCache()
+    with mock.patch.object(website.requests, "get", side_effect=fake_site):
+        read_website("example.com", cache=cache)
+        cache.docs["https://example.com"]["fetched_at"] -= website.timedelta(seconds=website.CACHE_SECONDS + 1)
+        read_extra_pages(["https://example.com"], cache=cache)
+    assert "links" not in cache.docs["https://example.com"]
