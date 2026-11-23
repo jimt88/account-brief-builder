@@ -18,6 +18,7 @@ MONGODB_URI, GEMINI_API_KEY and APP_PASSCODE.
 
 import hmac
 import html
+import json
 import os
 
 import pandas as pd
@@ -26,7 +27,7 @@ from dotenv import load_dotenv
 from google import genai
 from pymongo import MongoClient
 
-from brief.accounts import pipeline_csv, pipeline_rows, set_status
+from brief.accounts import DASHBOARD_PIPELINE, dashboard, pipeline_csv, pipeline_rows, set_status
 from brief.build import ACCOUNTS_COLLECTION, STATUSES
 from brief.errors import friendly_error
 from brief.pipeline import BriefError, build_brief
@@ -311,19 +312,43 @@ def page_new_account() -> None:
               on_click=open_brief, args=(result.account["domain"],))
 
 
+def show_dashboard(numbers: dict) -> None:
+    """Metric tiles and bar charts, all from one $facet result."""
+    totals = numbers["totals"]
+    with st.container(horizontal=True, wrap=False):
+        st.metric("Accounts", totals["accounts"], border=True)
+        st.metric("Avg score", totals["avg_score"], border=True)
+        st.metric("Score 50+", totals["score_50_plus"], border=True)
+    charts = [
+        ("By status", pd.DataFrame(numbers["by_status"]), "status", "count"),
+        ("Avg score by industry", pd.DataFrame(numbers["by_industry"]), "industry", "avg_score"),
+        ("Signals found", pd.DataFrame(numbers["signal_types"]), "signal", "count"),
+    ]
+    for (title, frame, x, y), column in zip(charts, st.columns(3)):
+        with column:
+            st.markdown(f"**{title}**")
+            if frame.empty:
+                st.caption("Nothing yet.")
+            else:
+                # Horizontal bars keep long labels readable on a phone.
+                st.bar_chart(frame, x=x, y=y, horizontal=True, sort=False, height=220,
+                             x_label="", y_label="", color="#00684A")
+    st.caption("One MongoDB $facet aggregation computes everything on this panel.")
+    with st.expander("Show the aggregation"):
+        st.code(json.dumps(DASHBOARD_PIPELINE, indent=2), language="json")
+
+
 def page_pipeline() -> None:
     try:
+        numbers = dashboard(accounts())
         rows = pipeline_rows(accounts())
     except Exception as exc:
         st.error(friendly_error(exc))
         return
+    show_dashboard(numbers)  # Shown even when empty: zero tiles and the aggregation.
     if not rows:
         st.info("No accounts yet. Build one on the New account page.")
         return
-    with st.container(horizontal=True, wrap=False):
-        st.metric("Accounts", len(rows), border=True)
-        st.metric("Avg score", round(sum(r["score"] for r in rows) / len(rows)), border=True)
-        st.metric("Meetings", sum(r["status"] == "Meeting set" for r in rows), border=True)
     st.caption("Ranked by score with a MongoDB aggregation pipeline. Change a status and it's saved straight away.")
     table = pd.DataFrame([{
         "Company": r["company"], "Score": r["score"], "Top signal": r["top_signal"],
@@ -413,6 +438,7 @@ def page_how_it_works() -> None:
 | Aggregation pipeline | Pipeline page | Sorts and shapes accounts on the server |
 | Schema validation | `stories`, `accounts` | Flexible documents, but bad data (e.g. a score of 150) is rejected |
 | Unique indexes | `stories.source_url`, `accounts.domain` | Re-running never creates duplicates |
+| `$facet` aggregation | Pipeline dashboard | One aggregation returns the status counts, average score by industry, signal counts and totals, in one round trip |
 | TTL index | `page_cache.fetched_at` | Cached pages are deleted by MongoDB about 24 hours after download (the TTL monitor runs about once a minute), so re-runs are fast and polite |
 | Atomic pipeline upsert | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) archives the old version inside the same write (last 5 kept), so two rebuilds at once can't lose or duplicate a brief |
 | PyMongo driver | Everywhere | The supported way to connect (no Data API) |

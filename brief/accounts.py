@@ -5,6 +5,7 @@ import io
 from datetime import datetime, timezone
 
 from brief.build import STATUSES
+from brief.signals import SIGNAL_LABELS
 
 # Aggregation pipeline: ranked by score, newest first on ties, only the columns we show.
 PIPELINE = [
@@ -31,6 +32,55 @@ PIPELINE = [
         "story": "$matched_story.company",
     }},
 ]
+
+
+# One $facet aggregation computes every number on the Pipeline dashboard in one
+# round trip. Each branch sees all accounts; that's fine at this size (one user's pipeline).
+DASHBOARD_PIPELINE = [
+    {"$facet": {
+        "by_status": [
+            {"$group": {"_id": "$status", "count": {"$sum": 1}}},
+        ],
+        "by_industry": [
+            {"$group": {"_id": {"$ifNull": ["$profile.industry_group", "Other"]},
+                        "count": {"$sum": 1}, "avg_score": {"$avg": "$score"}}},
+            {"$project": {"count": 1, "avg_score": {"$round": ["$avg_score", 0]}}},
+            {"$sort": {"avg_score": -1, "_id": 1}},
+        ],
+        "signal_types": [
+            {"$unwind": "$signals"},
+            {"$group": {"_id": "$signals.type", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1, "_id": 1}},
+        ],
+        "totals": [
+            {"$group": {"_id": None, "accounts": {"$sum": 1}, "avg_score": {"$avg": "$score"},
+                        "score_50_plus": {"$sum": {"$cond": [{"$gte": ["$score", 50]}, 1, 0]}}}},
+        ],
+    }},
+]
+
+
+def dashboard_numbers(result: dict) -> dict:
+    """Tidy one $facet result: every status in STATUSES order (0 if none), readable
+    signal names, and zero totals for an empty collection."""
+    status_counts = {r["_id"]: r["count"] for r in result.get("by_status", [])}
+    labels = {t.value: label for t, label in SIGNAL_LABELS.items()}
+    totals = (result.get("totals") or [{}])[0]
+    return {
+        "by_status": [{"status": s, "count": status_counts.get(s, 0)} for s in STATUSES],
+        "by_industry": [{"industry": r["_id"], "count": r["count"], "avg_score": int(r["avg_score"] or 0)}
+                        for r in result.get("by_industry", [])],
+        "signal_types": [{"signal": labels.get(r["_id"], str(r["_id"])), "count": r["count"]}
+                         for r in result.get("signal_types", [])],
+        "totals": {"accounts": totals.get("accounts", 0),
+                   "avg_score": round(totals.get("avg_score") or 0),
+                   "score_50_plus": totals.get("score_50_plus", 0)},
+    }
+
+
+def dashboard(accounts) -> dict:
+    """Pipeline dashboard numbers from a single $facet aggregation."""
+    return dashboard_numbers(next(accounts.aggregate(DASHBOARD_PIPELINE), {}))
 
 
 def pipeline_rows(accounts) -> list[dict]:
