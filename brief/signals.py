@@ -23,7 +23,8 @@ OTHER_DATABASES = ["oracle", "sql server", "mssql", "postgres", "mysql", "mariad
                    "aurora", "sqlite", "teradata", "spanner", "bigtable", "hbase", "neo4j", "scylla",
                    "cockroach", "supabase", "couchdb", "azure sql", "documentdb", "sap hana", "informix", "ingres"]
 
-# Products Gemini sometimes tags as a competitor database that aren't one.
+# Products Gemini sometimes tags as a competitor database that aren't one (unless the
+# name also names one, e.g. "Cosmos DB for MongoDB").
 NOT_COMPETITOR_DATABASES = ["mongo", "kafka", "rabbitmq", "spark", "flink", "kubernetes", "docker", "terraform"]
 
 
@@ -141,7 +142,8 @@ def verify_signals(signals: list[Signal], pages: list[Page]) -> list[Signal]:
         if s.technology and normalise(s.technology) not in quote:
             s = s.model_copy(update={"technology": ""})  # Only keep a product the quote names.
         if s.type == SignalType.COMPETITOR_DATABASE and (
-                any(word in normalise(s.technology) for word in NOT_COMPETITOR_DATABASES)
+                (any(word in normalise(s.technology) for word in NOT_COMPETITOR_DATABASES)
+                 and not any(db in normalise(s.technology) for db in OTHER_DATABASES))
                 or not (s.technology or any(db in quote for db in OTHER_DATABASES))):
             continue  # The quote must name the other database, and it can't be MongoDB or Kafka.
         if quote in page_norms.get(s.source_url, ""):

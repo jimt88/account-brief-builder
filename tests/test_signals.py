@@ -213,6 +213,9 @@ def test_competitor_database_quote_must_name_a_database():
     stream = Page(url="https://acme.com/s", title="Acme", text="Every payment flows through Kafka and MongoDB Atlas.")
     assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=stream.text, source_url=stream.url,
                                   technology=tech) for tech in ("Kafka", "MongoDB")], [stream]) == []
+    cosmos = Page(url="https://acme.com/j", title="Job", text="You will run Azure Cosmos DB for MongoDB in production.")
+    assert verify_signals([Signal(type=SignalType.COMPETITOR_DATABASE, quote=cosmos.text, source_url=cosmos.url,
+                                  technology="Azure Cosmos DB for MongoDB")], [cosmos])
 
 
 def test_pages_are_labelled_with_source_and_date():
