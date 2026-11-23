@@ -345,10 +345,10 @@ def page_pipeline() -> None:
     except Exception as exc:
         st.error(friendly_error(exc))
         return
+    show_dashboard(numbers)  # Shown even when empty: zero tiles and the aggregation.
     if not rows:
         st.info("No accounts yet. Build one on the New account page.")
         return
-    show_dashboard(numbers)
     st.caption("Ranked by score with a MongoDB aggregation pipeline. Change a status and it's saved straight away.")
     table = pd.DataFrame([{
         "Company": r["company"], "Score": r["score"], "Top signal": r["top_signal"],
