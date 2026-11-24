@@ -240,7 +240,10 @@ def show_brief(a: dict) -> None:
         st.metric("Matched story", s["company"], border=True, help=f"Similarity {s['score']:.2f}")
     if a["score_breakdown"]:
         top = a["score_breakdown"][0]
-        quote = next((x for x in a["signals"] if x["type"] == top.get("type")), None)
+        same_type = [x for x in a["signals"] if x["type"] == top.get("type")]
+        # The line's evidence URL points at the signal that scored, not just the first of its type.
+        quote = next((x for x in same_type if x["source_url"] == top.get("evidence")),
+                     same_type[0] if same_type else None)
         st.markdown(f"**Top reason to call:** {md(top['reason'])}")
         if quote:
             st.html(f'<div class="abb-quote">"{html.escape(quote["quote"])}"</div>')
