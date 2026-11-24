@@ -148,3 +148,12 @@ def test_top_quote_follows_the_top_signal_type():
     assert cond == {"$eq": ["$$this.type", {"$first": "$score_breakdown.type"}]}
     # Falls back to the first quote, then to "".
     assert top_quote["in"]["$ifNull"][1:] == [{"$first": "$signals.quote"}, ""]
+
+
+def test_vendor_named_by_a_github_dependency_is_not_flagged():
+    from brief.signals import Signal
+    p = profile([T.AI_INITIATIVE, T.MODERNISATION])
+    p.signals.append(Signal(type=T.COMPETITOR_DATABASE, quote="psycopg2-binary==2.9.9", technology="PostgreSQL",
+                            source_url="https://github.com/acme/app/blob/main/requirements.txt", source_type="github"))
+    warnings = check_brief(brief(value_hook="Run PostgreSQL workloads on MongoDB Atlas."), p, STORY)
+    assert not any("postgresql" in w for w in warnings)

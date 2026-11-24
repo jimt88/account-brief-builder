@@ -59,6 +59,8 @@ class Signal(BaseModel):
     quote: str  # Copied word for word from the page.
     source_url: str  # The page the quote is on.
     technology: str = ""  # The named product, e.g. "Oracle" or "Kafka", if the quote names one.
+    source_type: str = ""  # Set in code from the page: website, extra_link, job, news or github.
+    published_at: str = ""  # Set in code: the page's date (YYYY-MM-DD), if known.
 
     @property
     def label(self) -> str:
@@ -134,6 +136,7 @@ def verify_signals(signals: list[Signal], pages: list[Page]) -> list[Signal]:
     """Keep only signals whose quote is really on a page. If Gemini gave the
     wrong URL but the quote is on another page we read, fix the URL."""
     page_norms = {p.url: normalise(p.text) for p in pages}
+    pages_by_url = {p.url: p for p in pages}
     verified = []
     for s in signals:
         quote = normalise(s.quote)
@@ -148,13 +151,13 @@ def verify_signals(signals: list[Signal], pages: list[Page]) -> list[Signal]:
                  and not any(db in normalise(s.technology) for db in OTHER_DATABASES))
                 or not (s.technology or any(db in quote for db in OTHER_DATABASES))):
             continue  # The quote must name the other database, and it can't be MongoDB or Kafka.
-        if quote in page_norms.get(s.source_url, ""):
-            verified.append(s)
-            continue
-        for url, text in page_norms.items():
-            if quote in text:
-                verified.append(s.model_copy(update={"source_url": url}))
-                break
+        url = s.source_url if quote in page_norms.get(s.source_url, "") else next(
+            (url for url, text in page_norms.items() if quote in text), None)
+        if url is not None:
+            page = pages_by_url[url]
+            verified.append(s.model_copy(update={
+                "source_url": url, "source_type": page.source_type,
+                "published_at": page.published_at.date().isoformat() if page.published_at else ""}))
     return verified[:MAX_SIGNALS]
 
 

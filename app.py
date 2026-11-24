@@ -238,6 +238,10 @@ def show_brief(a: dict) -> None:
         if a.get("news"):
             st.markdown(f":material/newspaper: **News (last 3 months, GDELT):** {a['news']['articles_found']} "
                         f"articles with the company in the headline, {a['news']['articles_read']} readable")
+        if a.get("github"):
+            g = a["github"]
+            st.markdown(f":material/code: **GitHub:** [{g['org']}](https://github.com/{g['org']}): "
+                        f"{g['repos_checked']} recent repos, {g['files_read']} dependency files read")
         st.subheader("Signals", anchor=False)
         st.caption("Every quote is word for word from the linked page.")
         for n, x in enumerate(a["signals"], start=1):
@@ -435,6 +439,9 @@ def page_how_it_works() -> None:
    keeps the 25 newest technical roles, with dates. Emails and phone numbers are removed.
    **News:** one search of GDELT's free news index (last 3 months, company name in the
    headline, up to 8 articles); paywalled or login-only articles are skipped.
+   **GitHub:** if the site links to its GitHub org, the dependency files of its 10 most
+   recently pushed public repos (e.g. `pymongo`, `psycopg2`, `kafkajs`) become signals,
+   quoting the exact line.
 2. **Find signals.** Gemini lists signals (AI initiative, hiring engineers, legacy
    database, competitor database, MongoDB already in use, modernisation, scale or
    real time, new market or product), each with a quote. Job ads count as the
@@ -476,6 +483,8 @@ if not passcode_ok():
 if not get_setting("MONGODB_URI") or not get_setting("GEMINI_API_KEY"):
     st.error("MONGODB_URI and GEMINI_API_KEY must be set in the app's secrets.")
     st.stop()
+if get_setting("GITHUB_TOKEN"):  # Optional: brief/github.py reads it from the environment.
+    os.environ["GITHUB_TOKEN"] = get_setting("GITHUB_TOKEN")
 
 st.session_state.setdefault("page", PAGES[0])
 page = st.segmented_control("Page", PAGES, key="page", required=True, width="stretch",
