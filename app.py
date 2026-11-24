@@ -153,8 +153,28 @@ CSS = """
                       100% {box-shadow: 0 0 0 0 rgba(0, 237, 100, 0);}}
 @keyframes abb-spin {to {transform: rotate(360deg);}}
 @keyframes abb-stripes {from {background-position: 0 0;} to {background-position: 28px 0;}}
-[class*="st-key-excard_"] {flex: 1 1 140px !important; min-width: 140px; border-radius: 12px !important;}
-[class*="st-key-excard_on_"] {border-color: #00A35C !important; background: #E3FCF7;}
+/* Example cards: the whole card is the button (an invisible one laid over it). */
+[class*="st-key-excard_"] {position: relative; border-radius: 12px !important;
+                           transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;}
+[class*="st-key-excard_"]:hover {border-color: #00A35C !important; box-shadow: 0 4px 14px rgba(0, 30, 43, 0.08);
+                                 transform: translateY(-1px);}
+[class*="st-key-excard_"]:has(button:focus-visible) {outline: 2px solid #00A35C; outline-offset: 2px;}
+[class*="st-key-excard_on_"] {border-color: #00A35C !important; background: #E3FCF7;
+                              box-shadow: inset 0 0 0 1px #00A35C, 0 0 0 3px rgba(0, 237, 100, 0.18);}
+[class*="st-key-example_"] {position: absolute !important; inset: 0; z-index: 2; width: auto !important; margin: 0;}
+[class*="st-key-example_"] > div, [class*="st-key-example_"] button {width: 100%; height: 100%;}
+[class*="st-key-example_"] button {opacity: 0; cursor: pointer;}
+.abb-ex {display: flex; flex-direction: column; gap: 6px;}
+.abb-ex-top {display: flex; align-items: center; gap: 10px;}
+.abb-ex-logo {width: 34px; height: 34px; border-radius: 9px; background: #001E2B; color: #00ED64; font-weight: 700;
+              display: flex; align-items: center; justify-content: center; flex: none;}
+[class*="st-key-excard_on_"] .abb-ex-logo {background: #00684A; color: #FFFFFF;}
+.abb-ex-top b {display: block; color: #001E2B; line-height: 1.2;}
+.abb-ex-top small {color: #5C6C75; font-size: 0.75rem;}
+.abb-ex-tag {align-self: flex-start; font-size: 0.7rem; font-weight: 600; color: #00684A; background: #E3FCF7;
+             border: 1px solid #C0FAE6; border-radius: 999px; padding: 1px 8px;}
+.abb-ex-hint {font-size: 0.8rem; color: #3D4F58;}
+.abb-hint {font-size: 0.8rem; color: #5C6C75; margin: -4px 0 4px;}
 /* Pipeline table rows. */
 [class*="st-key-prow_"] {padding: 4px 8px; border-bottom: 1px solid #E8EDEB; border-radius: 6px;}
 [class*="st-key-prow_"]:last-child {border-bottom: none;}
@@ -418,8 +438,10 @@ def show_brief(a: dict) -> None:
     with st.container(horizontal=True, wrap=True):
         st.metric("Score", f"{a['score']}/100", border=True)
         st.metric("Verified signals", len(a["signals"]), border=True,
-                  help=" · ".join(f"{g} {n}" for g, n in counts.items() if n) or None)
-        st.metric("Matched story", s["company"], border=True, help=f"Similarity {s['score']:.2f}")
+                  delta=" · ".join(f"{g} {n}" for g, n in counts.items() if n) or None,
+                  delta_color="off", delta_arrow="off")
+        st.metric("Matched story", s["company"], border=True, delta=f"Similarity {s['score']:.2f}",
+                  delta_color="off", delta_arrow="off")
     if a["score_breakdown"]:
         top = a["score_breakdown"][0]
         same_type = [x for x in a["signals"] if x["type"] == top.get("type")]
@@ -603,19 +625,23 @@ def page_new_account() -> None:
     form_col, side_col = st.columns([3, 2], gap="large")
     with form_col:
         st.subheader("Research a new account", anchor=False)
-        st.caption("Type a company and its website, or start with an example. The app reads its public "
-                   "website, job ads, news and GitHub, keeps only quotes it can verify, and writes a call-ready brief.")
-        st.html('<div class="abb-kicker">Start with an example</div>')
-        with st.container(horizontal=True, wrap=True, gap="small"):
-            for company, website, industry, hint in EXAMPLES:
-                chosen = st.session_state.get("new_website") == website
-                with st.container(border=True, key=f"excard_{'on' if chosen else 'off'}_{website.split('.')[0]}"):
-                    st.markdown(f"**{company}**  \n:gray[{industry}]")
-                    st.caption(hint)
-                    st.button("Selected" if chosen else "Use", key=f"example_{website}", on_click=use_example,
-                              args=(company, website), type="primary" if chosen else "secondary",
-                              icon=":material/check:" if chosen else ":material/bolt:", width="stretch")
-        st.html('<div class="abb-kicker">Or type your own</div>')
+        st.caption("The app reads a company's public website, job ads, news and GitHub, keeps only quotes "
+                   "it can verify, and writes a call-ready brief.")
+        st.html('<div class="abb-kicker">1 · Pick an example</div>'
+                '<div class="abb-hint">Click a card to fill in the form. Nothing runs until you press Build brief.</div>')
+        grid = st.columns(2, gap="small") + st.columns(2, gap="small")
+        for column, (company, website, industry, hint) in zip(grid, EXAMPLES):
+            chosen = st.session_state.get("new_website") == website
+            card = f"excard_{'on' if chosen else 'off'}_{website.split('.')[0]}"
+            with column:
+                with st.container(border=True, height="stretch", key=card):
+                    st.html(f'<div class="abb-ex"><div class="abb-ex-top"><div class="abb-ex-logo">{company[0]}</div>'
+                            f'<div><b>{html.escape(company)}</b><small>{html.escape(website)}</small></div></div>'
+                            f'<span class="abb-ex-tag">{html.escape(industry)}</span>'
+                            f'<span class="abb-ex-hint">{html.escape(hint)}</span></div>')
+                    st.button(f"Use {company}", key=f"example_{website}", on_click=use_example,
+                              args=(company, website))
+        st.html('<div class="abb-kicker">2 · Or type your own</div>')
         with st.form("company", border=True):
             name_col, site_col = st.columns(2)
             company = name_col.text_input("Company name", placeholder="Ocado Group", key="new_company")
@@ -839,12 +865,12 @@ def page_brief() -> None:
         st.info("No accounts yet. Build one on the New account page.")
         return
     rows = sorted(rows, key=lambda r: (r["company"].lower(), r["domain"]))
-    names, scores = account_labels(rows), {r["domain"]: r["score"] for r in rows}
+    names = account_labels(rows)
     domains = [r["domain"] for r in rows]
     selected = st.session_state.get("selected")
-    domain = st.selectbox(f"Account ({len(domains)}, A-Z)", domains,
+    domain = st.selectbox("Account", domains,
                           index=domains.index(selected) if selected in domains else 0,
-                          format_func=lambda d: f"{names[d]} · {scores[d]}/100", filter_mode="contains",
+                          format_func=lambda d: names[d], filter_mode="contains",
                           placeholder="Type to search accounts", icon=":material/search:",
                           help="Click and start typing a company name to search.")
     st.session_state.selected = domain
