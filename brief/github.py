@@ -77,7 +77,7 @@ def org_votes(links: list[str]) -> Counter:
         if parts[:1] == ["orgs"]:
             parts = parts[1:]
         if parts and parts[0].lower() not in NOT_ORGS and re.fullmatch(r"[A-Za-z0-9-]{1,39}", parts[0]):
-            orgs[parts[0]] += PROFILE_LINK_WEIGHT if len(parts) == 1 else 1
+            orgs[parts[0].lower()] += PROFILE_LINK_WEIGHT if len(parts) == 1 else 1  # GitHub ignores case.
     return orgs
 
 
@@ -128,31 +128,50 @@ def uncommented(lines: list[str], start: str, end: str) -> list[str]:
 TOML_NAME = r"[A-Za-z0-9][A-Za-z0-9._\-\[\]]*"
 
 
+def toml_code(line: str) -> str:
+    """A TOML line with strings blanked and the comment removed, to read its structure."""
+    return re.sub(r'"[^"]*"|\'[^\']*\'', '""', line).split("#")[0].strip()
+
+
 def pyproject_lines(lines: list[str]) -> list[tuple[str, str]]:
     """Dependencies in pyproject.toml: the [project] dependencies array, optional
     dependencies, dependency groups and Poetry's "name = version" tables. Other
     tables (metadata, tool settings) and # comments are ignored."""
-    found, section, in_array = [], "", False
+    found, section, array = [], "", None  # array: "names" (scan it) or "skip" (Poetry constraints).
     for line in lines:
-        stripped = line.strip()
-        if not stripped or stripped.startswith("#"):
+        code = toml_code(line)
+        if not code:
             continue
-        header = re.fullmatch(r"\[+([^\]]+)\]+", stripped)
-        if header and not in_array:
-            section = header.group(1).strip()
-            continue
-        deps_table = section.endswith("dependencies") or section == "dependency-groups"
-        opens = re.match(r"([\w.\-]+)\s*=\s*\[", stripped)
-        if opens and not in_array and (deps_table or (section == "project" and opens.group(1) == "dependencies")):
-            in_array, stripped = True, stripped[opens.end():]
-        if in_array:
-            for match in re.finditer(rf'"({TOML_NAME})', stripped.split("#")[0]):
-                found.append((match.group(1), line))
-            in_array = "]" not in stripped.split("#")[0]
-        elif deps_table and section != "dependency-groups":
-            match = re.match(r"([A-Za-z0-9][A-Za-z0-9._\-]*)\s*=", stripped)
-            if match and match.group(1) != "python":
-                found.append((match.group(1), line))
+        if array is None:
+            header = re.fullmatch(r"\[+([^\]]+)\]+", code)
+            if header:
+                section = header.group(1).strip()
+                continue
+            deps_table = section.endswith("dependencies") or section == "dependency-groups"
+            poetry = section.startswith("tool.poetry")
+            key = re.match(r'"?([A-Za-z0-9][A-Za-z0-9._\-]*)"?\s*=', line.strip())
+            if not key or not (deps_table or (section == "project" and key.group(1) == "dependencies")):
+                continue
+            if poetry:  # name = "^1.0" | {version = ...} | [{...}, {...}]: the key is the package.
+                if key.group(1) != "python":
+                    found.append((key.group(1), line))
+                array = "skip" if code.endswith("[") or ("[" in code and "]" not in code) else None
+                continue
+            if "[" not in code:
+                continue
+            array = "names"
+            line_part = line[line.index("=") + 1:]
+        else:
+            line_part = line
+        if array == "names":
+            for match in re.finditer(r'"([^"]*)"|#', line_part):  # Strings until a comment.
+                if match.group(0) == "#":
+                    break
+                name = re.match(TOML_NAME, match.group(1))
+                if name:
+                    found.append((name.group(0), line))
+        if "]" in toml_code(line_part if array == "names" else line):
+            array = None
     return found
 
 

@@ -173,3 +173,18 @@ def test_pasted_org_wins_and_org_links_beat_third_party_repos():
     assert find_github_org(page_links) == "acme"
     assert find_github_org(page_links + ["https://github.com/vendor/sdk"] * 3, ["https://github.com/acme-eng"]) == "acme-eng"
     assert find_github_org(["https://github.com/vendor/sdk"], ["https://acme.com/press"]) == "vendor"
+
+
+def test_pyproject_extras_header_comments_and_poetry_constraint_arrays():
+    toml = ('[project]  # the app\nname = "app"\ndependencies = [\n  "httpx[http2]>=0.27",  # fast\n'
+            '  "pymongo>=4",\n]\n[project.optional-dependencies]\nai = ["openai>=1", "redis"]\n'
+            '[tool.poetry.dependencies]\npython = "^3.11"\npsycopg = [\n  {version = "^3", python = "<3.12"},\n'
+            '  {version = "^3.1", python = ">=3.12"},\n]\nkafka-python = {version = "^2", extras = ["lz4"]}\n')
+    names = [n for n, _ in github.pyproject_lines(toml.splitlines())]
+    assert names == ["httpx[http2]", "pymongo", "openai", "redis", "psycopg", "kafka-python"]
+
+
+def test_org_votes_ignore_case():
+    links = ["https://github.com/Acme", "https://github.com/acme/app", "https://github.com/vendor",
+             "https://github.com/ACME/x"]
+    assert find_github_org(links) == "acme"
