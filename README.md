@@ -17,9 +17,12 @@ store or search engine to keep in sync.
 
 ```mermaid
 flowchart LR
-    U[ADR in the browser<br/>Streamlit + passcode] --> R[Read up to 4 public pages<br/>robots.txt, 10 s timeout]
+    U[ADR in the browser<br/>Streamlit + passcode] --> R[Read up to 30 pages from the sitemap<br/>+ job ads, news, GitHub<br/>robots.txt, 60 s budget]
     R <--> PC[(adr_brief.page_cache<br/>TTL 24 h)]
-    R --> G1[Gemini: signals<br/>type + quote + URL]
+    R --> CH[(adr_brief.page_chunks<br/>~1,200-char chunks, TTL 24 h)]
+    VY2[Voyage AI voyage-4<br/>run by Atlas] -.-> CV
+    CH --> CV[One $vectorSearch<br/>chunk_autoembed_index<br/>+ keyword scan, RRF]
+    CV --> G1[Gemini: signals from<br/>the 15 best passages]
     G1 --> V{Quote on the page<br/>word for word?}
     V -- no --> X[Dropped]
     V -- yes --> S[Score 0-100<br/>with breakdown]
@@ -54,6 +57,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 | **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, a story without `search_text`) |
 | **`$facet` aggregation** | Pipeline dashboard (`DASHBOARD_PIPELINE` in `brief/accounts.py`) | One aggregation computes accounts by status, count and average score by industry (`$group`, `$avg`, `$round`), signal counts (`$unwind`) and totals, in a single round trip. The page has a "Show the aggregation" button that displays it |
 | **TTL index** | `page_cache.fetched_at` (`expireAfterSeconds: 86400`), plus a unique `url` index and `$jsonSchema` | Pages read in the last 24 hours come from MongoDB instead of the web, so re-running an account is faster and kinder to the company's site. MongoDB deletes old pages itself; the TTL monitor runs about once a minute, so removal is not instant |
+| **Passage selection: chunks + one `$vectorSearch`** | `page_chunks` (`$jsonSchema`, unique `(domain, url, chunk_index)`, TTL 24 h) and `chunk_autoembed_index` (`autoEmbed` on `text`, `voyage-4`; filters `domain`, `source_type`) | A 30-page crawl plus job ads and news is too much for one prompt. Every page is cut into ~1,200-character chunks (150 overlap, paragraph-aware, max 400 per company, inserted 100 at a time). One `$vectorSearch` (`limit` 30, `numCandidates` 600, filtered to the company's domain) with a single buying-intent query ranks them by meaning; a keyword scan (Oracle, mainframe, Kafka, LLM, migration, ...) ranks them by terms; reciprocal rank fusion (1 / (60 + rank)) merges the two. The 15 best, with at least 3 job and 2 news passages when available, go to Gemini. The Brief page shows them under "Passages Atlas picked for Gemini" |
 | **Unique indexes** | `stories.source_url`, `accounts.domain` | Re-running never duplicates; plus a `score` index for the ranked view |
 | **Atomic pipeline upsert** | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) writes the new brief and archives the old version inside the same write, keeping the last 5. Two concurrent rebuilds can't lose or duplicate a brief |
 | **PyMongo driver** | Everywhere | The supported way to connect (the Atlas Data API is end of life) |
@@ -72,9 +76,15 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
   free personal token with no scopes) for 5,000 an hour.
 - **GDELT news:** about one request every 5 seconds per IP; one per brief. If it's busy
   the brief is built without news.
-- **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts.
-  Up to 3 search/vector indexes per cluster (sample datasets count too); this app uses 2
-  (`story_autoembed_index`, `story_text_index`).
+- **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts
+  (page chunks are deleted after 24 hours). Up to 3 search/vector indexes per cluster
+  (sample datasets count too); this app uses all 3 (`story_autoembed_index`,
+  `story_text_index`, `chunk_autoembed_index`), so chunks have no lexical index: keyword
+  ranking runs in Python.
+- **Embedding queries per brief:** at most 3 (one passage search, up to two story
+  searches), within M0's ~3 a minute. Space demo briefs about a minute apart.
+- **Brief time:** about 1-2 minutes: up to 60 s reading the site (4 pages at a time),
+  ~20 s for Atlas to embed new chunks (`CHUNK_INDEX_WAIT_S`), then 2 Gemini calls.
 - **Streamlit Community Cloud:** the app sleeps after a period without visitors;
   the first load after that takes about 30 seconds.
 - **Websites:** some sites block automated readers (e.g. openai.com returns 403) or only
@@ -127,6 +137,8 @@ the safer proof point, and the ranks are shown on the Brief page. Set `STORY_MAT
 | Wrong Gemini key | "The Gemini API key was rejected. Check GEMINI_API_KEY…" |
 | Wrong Atlas password / Atlas unreachable | Says which: check MONGODB_URI, or Atlas Network Access |
 | Slow website | 10 s timeout per page; slow pages are skipped with a note |
+| Big or slow site | Reading stops after 60 s and the brief uses the pages read so far ("Stopped reading the site after 60 s") |
+| Atlas still embedding new chunks, or Vector Search unavailable | Passages are chosen by keyword: "Atlas was still indexing; passages chosen by keyword" |
 | Site blocks readers (403) or robots.txt | "Could not open… try the corporate/investor site or paste extra links" |
 | JavaScript-only pages | Skipped with a note ("probably needs JavaScript") |
 | No quotable signals | Suggests the newsroom/investor site or a press release |
@@ -281,11 +293,17 @@ vector search would hit the same limit). Try both:
 python scripts/extract_signals.py "Ocado Group" ocadogroup.com
 ```
 
-1. Reads at most 4 public pages: the home page, then the best About, Careers and
-   engineering-blog/news links on the same site, with a clear user agent and a 10 s
-   timeout per page. It respects `robots.txt`, never logs in, skips login/paywalled
-   pages and other sites (e.g. LinkedIn), and gives a friendly note for any page it
-   couldn't read.
+1. Reads up to 30 public pages: the home page, then the best URLs from the site's
+   sitemaps (`Sitemap:` lines in `robots.txt` and `/sitemap.xml`, sitemap indexes
+   followed, at most 5 files). URLs score a point for each useful word in the path
+   (careers, engineering, news, press, investors, strategy, data, cloud, ai, platform,
+   ...) plus 2 if the sitemap says they changed in the last 12 months; legal, cookie,
+   privacy, login and cart pages and PDFs are skipped. Subdomains of the same company
+   (`careers.`, `investors.`) are fine; other sites are never followed. With no sitemap
+   it falls back to the best About, Careers and blog links on the home page. Pages are
+   read 4 at a time with a 10 s timeout each, and reading stops after 60 s, keeping what
+   was read. It respects `robots.txt` (per subdomain), never logs in, skips
+   login/paywalled pages, and gives a friendly note for any page it couldn't read.
 2. **Job ads** (`brief/jobs.py`): if a page we read (or a pasted extra link) links to a
    public job board, the app reads that board's public feed: Greenhouse, Lever, Ashby,
    SmartRecruiters, Personio or Workable. It never guesses a board from the company
@@ -345,6 +363,7 @@ python -m pytest -q
 ```
 python scripts/setup_accounts.py      # once: creates adr_brief.accounts
 python scripts/setup_page_cache.py    # once: creates adr_brief.page_cache (TTL 24 h)
+python scripts/create_chunk_index.py  # once: adr_brief.page_chunks + chunk_autoembed_index
 python scripts/make_brief.py "Ocado Group" ocadogroup.com
 ```
 
@@ -426,7 +445,7 @@ phone-friendly:
 One-time database setup (run locally with an admin connection string):
 `scripts/build_story_library.py`, `scripts/tag_story_industries.py`,
 `scripts/migrate_search_text.py`, `scripts/create_autoembed_index.py`, `scripts/create_search_index.py`, `scripts/setup_accounts.py`,
-`scripts/setup_page_cache.py`.
+`scripts/setup_page_cache.py`, `scripts/create_chunk_index.py`.
 
 Before publishing, the repo was checked with [gitleaks](https://github.com/gitleaks/gitleaks)
 (`gitleaks git .` and `gitleaks dir .`): no leaks found.
