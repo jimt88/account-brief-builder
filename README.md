@@ -90,7 +90,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 - **Websites:** some sites block automated readers (e.g. openai.com returns 403) or only
   render with JavaScript. Use the company's newsroom/investor site or paste extra links.
 
-## Test results (5 real EMEA accounts)
+## Test results (5 real EMEA accounts, score v1)
 
 `python scripts/evaluate_accounts.py` runs the full flow and re-downloads every source
 page to check each quote word for word, checks the brief has no warnings (numbers,
@@ -127,6 +127,29 @@ Hybrid agreed on 3 of 5, improved 1 and was worse on 1, the same pattern as with
 old Gemini embeddings (Voyage changed the vector-only pick for Glanbia and Allegro). It
 stays the default because a story ranked high on both meaning and exact words is usually
 the safer proof point, and the ranks are shown on the Brief page. Set `STORY_MATCH_MODE=vector` to switch back.
+
+### Score v1 vs v2
+
+`python scripts/evaluate_accounts.py --compare-v1` reads each saved (v1) account, rebuilds
+it with the current code (wider crawl, jobs, news, GitHub, score v2) and prints this table.
+
+| Company | Verified signals v1 → v2 | Signals by source (jobs/news/github/site) | Score v1 → v2 | Strongest new signal |
+|---|---|---|---|---|
+| Glanbia | 2 → 1 | 0/0/0/1 | 15 → 8 | None: nothing beyond the website |
+| Bank of Ireland | 6 → 4 | 0/0/0/4 | 50 → 28 | None: nothing beyond the website |
+| N26 | 3 → 4 | 0/0/0/4 | 30 → 35 | None: nothing beyond the website |
+| Allegro | 4 → 2 | 0/0/0/2 | 45 → 20 | None: nothing beyond the website |
+| DSV | 4 → 3 | 0/0/0/3 | 50 → 28 | None: nothing beyond the website |
+
+Honest reading: none of these 5 companies links a public job board or a GitHub
+organisation from its site, and GDELT was rate-limited (one request every 5 s) during
+the run, so every signal is from the website. Undated website evidence now scores
+×0.7 (source) × 0.8 (unknown date), so scores fall by about half: v2 deliberately
+ranks companies with fresh job ads, news or code above those with only website copy.
+Companies that do publish those sources score higher (Monzo: 25 technical roles on its
+job board; Zalando: Redis and PostgreSQL in its GitHub manifests). Glanbia's run failed
+one brief check (1 why-now bullet instead of 2); all quotes verified. Gemini found no
+stated HQ country for most of these pages, so the EMEA bonus applied only to N26.
 
 ## What could break in a live demo (and what the app says)
 
@@ -369,10 +392,15 @@ python scripts/make_brief.py "Ocado Group" ocadogroup.com
 
 Runs everything above, then (code in `brief/build.py`):
 
-1. **Score (0–100, transparent).** +25 ai_initiative, +20 hiring_engineers,
-   +20 legacy_database, +15 modernisation, +10 scale_or_real_time (each type counted
-   once), +10 if the pages state an HQ in EMEA; capped at 100. The breakdown is stored,
-   so you can see exactly why an account scored what it did.
+1. **Score v2 (0–100, transparent; `score_version: 2`).** Base points: +25 ai_initiative,
+   +20 legacy_database, +20 hiring_engineers, +15 competitor_database, +15 modernisation,
+   +15 mongodb_in_use (labelled "Existing MongoDB usage: expansion"), +10 scale_or_real_time.
+   Each type counts once, using its strongest signal: base × source (job ad 1.0, GitHub 1.0,
+   news 0.9, extra link 0.8, website 0.7) × recency (≤90 days 1.0, ≤180 0.75, ≤365 0.5,
+   older 0.25, date unknown 0.8), rounded. Plus +5 for 5+ technical roles open on the
+   job board (+10 for 20+), and +10 if the pages state an HQ in EMEA; capped at 100.
+   Every breakdown line stores its maths and evidence URL, so you can see exactly why
+   an account scored what it did.
 2. **Story match.** Atlas Vector Search, pre-filtered to the company's industry group;
    if there is no story in that industry it searches all stories.
 3. **Brief (Gemini, verified evidence only).** why_now (2 bullets citing signal
@@ -383,7 +411,8 @@ Runs everything above, then (code in `brief/build.py`):
 4. **Checks.** Warns about over-long text, missing citations, any number not in the
    evidence, and any vendor name (Oracle, AWS, ...) that no quote from the company mentions.
 5. **Saved** as one document per company in `adr_brief.accounts`, keyed by domain:
-   signals, score, score_breakdown, matched_story, brief, status ("New" on first run),
+   signals (with source_type, published_at, technology), score, score_version,
+   score_breakdown, sources_summary, matched_story, brief, status ("New" on first run),
    updated_at. Re-running archives the previous brief and score in `history[]` (last 5 kept)
    in the same atomic write, and keeps the status. The collection has schema validation, a unique index on `domain`
    and an index on `score` for the ranked pipeline.

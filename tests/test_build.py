@@ -3,6 +3,8 @@
 Run from the project folder:  python -m pytest -q
 """
 
+from datetime import datetime, timedelta, timezone
+
 from brief.accounts import PIPELINE
 from brief.build import (MAX_HISTORY, Email, Persona, SalesBrief, check_brief, domain_of,
                          save_account, score_account)
@@ -12,8 +14,17 @@ from brief.signals import CompanyProfile, Signal, SignalType as T
 URL = "https://example.com/about"
 
 
-def profile(types, hq="Ireland"):
-    signals = [Signal(type=t, quote=f"Quote number {i} about our plans for the year.", source_url=URL)
+NOW = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+
+def days_ago(days: int) -> str:
+    return (NOW - timedelta(days=days)).date().isoformat()
+
+
+def profile(types, hq="Ireland", source="job", date=None):
+    date = days_ago(3) if date is None else date
+    signals = [Signal(type=t, quote=f"Quote number {i} about our plans for the year.", source_url=URL,
+                      source_type=source, published_at=date)
                for i, t in enumerate(types)]
     return CompanyProfile(company="Example", what_they_do="Payments software.", industry="Fintech",
                           industry_group=IndustryGroup.FINANCIAL, hq_country=hq,
@@ -21,21 +32,21 @@ def profile(types, hq="Ireland"):
 
 
 def test_score_adds_up_and_each_type_counts_once():
-    score, breakdown = score_account(profile([T.AI_INITIATIVE, T.AI_INITIATIVE, T.MODERNISATION]))
+    score, breakdown = score_account(now=NOW, profile=profile([T.AI_INITIATIVE, T.AI_INITIATIVE, T.MODERNISATION]))
     assert score == 25 + 15 + 10 == sum(line["points"] for line in breakdown)
     assert [line["points"] for line in breakdown] == [25, 15, 10]
 
 
 def test_score_is_capped_at_100():
     all_types = [T.AI_INITIATIVE, T.HIRING_ENGINEERS, T.LEGACY_DATABASE, T.MODERNISATION, T.SCALE_OR_REAL_TIME]
-    score, breakdown = score_account(profile(all_types))
+    score, breakdown = score_account(now=NOW, profile=profile(all_types))
     assert sum(line["points"] for line in breakdown) == 100 and score == 100
 
 
 def test_no_emea_points_without_a_stated_emea_hq():
-    assert score_account(profile([T.OTHER], hq=""))[0] == 0
-    assert score_account(profile([T.OTHER], hq="United States"))[0] == 0
-    assert score_account(profile([T.NEW_MARKET_OR_PRODUCT], hq="Germany"))[0] == 10
+    assert score_account(now=NOW, profile=profile([T.OTHER], hq=""))[0] == 0
+    assert score_account(now=NOW, profile=profile([T.OTHER], hq="United States"))[0] == 0
+    assert score_account(now=NOW, profile=profile([T.NEW_MARKET_OR_PRODUCT], hq="Germany"))[0] == 10
 
 
 def test_domain_is_the_account_key():
@@ -105,7 +116,7 @@ def test_persona_and_story_why_are_checked_too():
 
 def test_all_african_countries_count_as_emea():
     for country in ["Gabon", "Sierra Leone", "Sudan", "Democratic Republic of the Congo", "Kenya"]:
-        assert score_account(profile([T.OTHER], hq=country))[0] == 10, country
+        assert score_account(now=NOW, profile=profile([T.OTHER], hq=country))[0] == 10, country
 
 
 def test_csv_cells_cannot_become_formulas():
@@ -138,7 +149,7 @@ def test_save_is_one_pipeline_update_that_caps_history():
 
 
 def test_breakdown_lines_name_their_signal_type():
-    _, breakdown = score_account(profile([T.MODERNISATION, T.AI_INITIATIVE]))
+    _, breakdown = score_account(now=NOW, profile=profile([T.MODERNISATION, T.AI_INITIATIVE]))
     assert [line["type"] for line in breakdown] == ["ai_initiative", "modernisation", "emea_hq"]
 
 
@@ -157,3 +168,62 @@ def test_vendor_named_by_a_github_dependency_is_not_flagged():
                             source_url="https://github.com/acme/app/blob/main/requirements.txt", source_type="github"))
     warnings = check_brief(brief(value_hook="Run PostgreSQL workloads on MongoDB Atlas."), p, STORY)
     assert not any("postgresql" in w for w in warnings)
+
+
+def sig(t, source="job", date=None, tech="", url=URL):
+    return Signal(type=t, quote="We run Oracle and are hiring.", source_url=url, source_type=source,
+                  published_at=days_ago(3) if date is None else date, technology=tech)
+
+
+def scored(signals, hq="", jobs=None):
+    p = profile([], hq=hq)
+    p.signals = signals
+    return score_account(p, jobs, now=NOW)
+
+
+def test_source_strength_multipliers():
+    for source, points in [("job", 15), ("github", 15), ("news", 14), ("extra_link", 12), ("website", 11), ("", 11)]:
+        score, (line,) = scored([sig(T.MODERNISATION, source)])
+        assert score == line["points"] == points, source
+
+
+def test_recency_multipliers_and_unknown_dates():
+    for days, points in [(0, 20), (90, 20), (91, 15), (180, 15), (181, 10), (365, 10), (366, 5), (2000, 5)]:
+        assert scored([sig(T.LEGACY_DATABASE, date=days_ago(days))])[0] == points, days
+    assert scored([sig(T.LEGACY_DATABASE, date="")])[0] == 16  # 20 x 1.0 x 0.8
+    assert scored([sig(T.LEGACY_DATABASE, date="not a date")])[0] == 16
+
+
+def test_breakdown_line_shows_its_maths_and_evidence():
+    _, (line,) = scored([sig(T.COMPETITOR_DATABASE, "news", days_ago(120), "Oracle", "https://n.example/a")])
+    assert line == {"type": "competitor_database", "reason": "Competitor database: Oracle (news, 120 days old)",
+                    "points": 10, "maths": "15 × 0.9 × 0.75", "evidence": "https://n.example/a"}
+
+
+def test_strongest_signal_of_a_type_wins_and_counts_once():
+    old_site = sig(T.AI_INITIATIVE, "website", days_ago(400), url="https://a.example/site")
+    fresh_job = sig(T.AI_INITIATIVE, "job", days_ago(5), url="https://a.example/job")
+    score, breakdown = scored([old_site, fresh_job])
+    assert score == 25 and breakdown[0]["evidence"] == "https://a.example/job"
+
+
+def test_hiring_volume_bonus():
+    board = {"platform": "Greenhouse", "board_url": "https://boards.greenhouse.io/x", "technical_open": 4}
+    assert scored([], jobs=board)[0] == 0
+    for open_roles, bonus in [(5, 5), (19, 5), (20, 10), (37, 10)]:
+        score, (line,) = scored([], jobs={**board, "technical_open": open_roles})
+        assert score == bonus and line["type"] == "hiring_volume"
+        assert line["evidence"] == board["board_url"] and "Greenhouse" in line["reason"]
+
+
+def test_v2_cap_rounding_and_sum():
+    types = [T.AI_INITIATIVE, T.HIRING_ENGINEERS, T.LEGACY_DATABASE, T.COMPETITOR_DATABASE,
+             T.MODERNISATION, T.MONGODB_IN_USE, T.SCALE_OR_REAL_TIME]
+    score, breakdown = scored([sig(t) for t in types], hq="Ireland", jobs={"technical_open": 25})
+    assert sum(line["points"] for line in breakdown) == 140 and score == 100
+    assert all(isinstance(line["points"], int) for line in breakdown)
+    assert [line["points"] for line in breakdown] == sorted((line["points"] for line in breakdown), reverse=True)
+    # 25 x 0.7 x 1.0 = 17.5 rounds half up, and the score is the sum of the lines.
+    score, breakdown = scored([sig(T.AI_INITIATIVE, "website")])
+    assert score == breakdown[0]["points"] == 18
+    assert dict(scored([sig(T.MONGODB_IN_USE)])[1][0])["reason"].startswith("Existing MongoDB usage: expansion")

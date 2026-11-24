@@ -24,7 +24,7 @@ from pymongo.errors import DuplicateKeyError
 
 from brief.gemini_utils import TEXT_MODEL, call_with_retry, normalise, parsed_or_raise
 from brief.industries import IndustryGroup
-from brief.signals import CompanyProfile, SignalType, story_query_text
+from brief.signals import SIGNAL_LABELS, CompanyProfile, SignalType, story_query_text
 from brief.story_search import EmbeddingRateLimit, find_similar_stories, find_similar_stories_hybrid
 
 ACCOUNTS_COLLECTION = "accounts"
@@ -36,14 +36,28 @@ log = logging.getLogger(__name__)
 
 # ---- 1. Score ---------------------------------------------------------------
 
-# Points for each signal type (counted once per type, however many quotes).
+SCORE_VERSION = 2
+
+# Base points for each signal type (counted once per type, using its strongest signal).
 SIGNAL_POINTS = {
     SignalType.AI_INITIATIVE: 25,
     SignalType.HIRING_ENGINEERS: 20,
     SignalType.LEGACY_DATABASE: 20,
+    SignalType.COMPETITOR_DATABASE: 15,
     SignalType.MODERNISATION: 15,
+    SignalType.MONGODB_IN_USE: 15,
     SignalType.SCALE_OR_REAL_TIME: 10,
 }
+# How much a source proves: a job ad or dependency file shows what they use today.
+SOURCE_STRENGTH = {"job": 1.0, "github": 1.0, "news": 0.9, "extra_link": 0.8, "website": 0.7}
+SOURCE_NAMES = {"job": "job ad", "github": "GitHub", "news": "news", "extra_link": "extra link",
+                "website": "website"}
+# (max age in days, multiplier); older than the last is OLD_RECENCY, no date is UNKNOWN_RECENCY.
+RECENCY = [(90, 1.0), (180, 0.75), (365, 0.5)]
+OLD_RECENCY = 0.25
+UNKNOWN_RECENCY = 0.8
+# (technical roles open, bonus), highest first.
+HIRING_VOLUME_BONUS = [(20, 10), (5, 5)]
 EMEA_POINTS = 10
 MAX_SCORE = 100
 
@@ -74,20 +88,66 @@ EMEA_COUNTRIES = {
 }
 
 
-def score_account(profile: CompanyProfile) -> tuple[int, list[dict]]:
-    """Return (score, breakdown). Each breakdown line says why points were given."""
+def age_days(published_at: str, now: datetime) -> int | None:
+    """Days since a YYYY-MM-DD (or ISO) date; None if missing or unreadable."""
+    try:
+        day = datetime.fromisoformat(published_at[:10]).replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+    return max(0, (now - day).days)
+
+
+def recency(days: int | None) -> float:
+    if days is None:
+        return UNKNOWN_RECENCY
+    return next((m for limit, m in RECENCY if days <= limit), OLD_RECENCY)
+
+
+def round_half_up(x: float) -> int:
+    return int(x + 0.5)
+
+
+def score_account(profile: CompanyProfile, jobs: dict | None = None,
+                  now: datetime | None = None) -> tuple[int, list[dict]]:
+    """Return (score, breakdown), score v2. Each line shows its maths:
+    base points x source strength x recency, rounded, for the strongest signal of
+    each type; plus the hiring-volume and EMEA bonuses. Total capped at 100.
+    Lines are sorted highest points first (the Pipeline shows the first)."""
+    now = now or datetime.now(timezone.utc)
     breakdown = []
-    for signal_type, points in SIGNAL_POINTS.items():
-        quotes = [s for s in profile.signals if s.type == signal_type]
-        if quotes:
-            breakdown.append({
-                "type": signal_type.value,
-                "reason": f"{quotes[0].label} signal",
-                "points": points,
-                "evidence": quotes[0].source_url,
-            })
+    for signal_type, base in SIGNAL_POINTS.items():
+        options = []
+        for s in profile.signals:
+            if s.type != signal_type:
+                continue
+            strength = SOURCE_STRENGTH.get(s.source_type, SOURCE_STRENGTH["website"])
+            days = age_days(s.published_at, now)
+            options.append((base * strength * recency(days), strength, days, s))
+        if not options:
+            continue
+        exact, strength, days, s = max(options, key=lambda o: o[0])  # First wins on ties.
+        what = f"{SIGNAL_LABELS[signal_type]}" + (f": {s.technology}" if s.technology else "")
+        age = "date unknown" if days is None else f"{days} day{'s' if days != 1 else ''} old"
+        source = SOURCE_NAMES.get(s.source_type, "website")
+        breakdown.append({
+            "type": signal_type.value,
+            "reason": f"{what} ({source}, {age})",
+            "points": round_half_up(exact),
+            "maths": f"{base} × {strength:.1f} × {recency(days):g}",
+            "evidence": s.source_url,
+        })
+    technical = (jobs or {}).get("technical_open") or 0
+    bonus = next((b for minimum, b in HIRING_VOLUME_BONUS if technical >= minimum), 0)
+    if bonus:
+        breakdown.append({"type": "hiring_volume",
+                          "reason": f"Hiring volume: {technical} technical roles open on {jobs.get('platform', 'the job board')}",
+                          "points": bonus, "maths": f"{technical} roles ≥ "
+                          f"{next(m for m, b in HIRING_VOLUME_BONUS if b == bonus)} → +{bonus}",
+                          "evidence": jobs.get("board_url", "")})
     if profile.hq_country.strip().lower() in EMEA_COUNTRIES:
-        breakdown.append({"type": "emea_hq", "reason": f"HQ in EMEA ({profile.hq_country})", "points": EMEA_POINTS, "evidence": ""})
+        breakdown.append({"type": "emea_hq", "reason": f"HQ in EMEA ({profile.hq_country})",
+                          "points": EMEA_POINTS, "maths": f"+{EMEA_POINTS}", "evidence": ""})
+    breakdown.sort(key=lambda line: -line["points"])
     return min(MAX_SCORE, sum(line["points"] for line in breakdown)), breakdown
 
 
@@ -169,12 +229,16 @@ Rules:
   Oracle, AWS, etc.) unless one of the quotes says so.
 - Refer to the customer story as an example of a similar company; do not claim
   {company} is a MongoDB customer.
+- If a signal is "Existing MongoDB usage: expansion", {company} already uses MongoDB:
+  frame the opener and email as expanding that use (more teams, Atlas features), not
+  as winning a new customer.
 - Plain, friendly British English. No hype, no buzzwords, no emojis. Write numbers
   as digits and copy them exactly as they appear in the facts.
 
 Write:
 - why_now: exactly 2 short bullets on why to reach out now, each citing the
-  signal number it is based on, like "[2]".
+  signal number it is based on, like "[2]". Lead with the most recent signals from
+  the strongest sources (job ads and GitHub first, then news, then the website).
 - personas: exactly 2 people to approach, one with side "IT" and one with side
   "Business": a job title and one line on why they might care. These are guesses.
 - value_hook: ONE plain-English sentence, under {max_hook} words, linking their
@@ -206,7 +270,9 @@ Story outcomes (quoted from {story_url}):
 
 def write_brief(gemini: genai.Client, profile: CompanyProfile, story: dict) -> SalesBrief:
     signals = "\n".join(
-        f'{n}. [{s.label}] "{s.quote}" ({s.source_url})' for n, s in enumerate(profile.signals, start=1)
+        f'{n}. [{s.label}] "{s.quote}" ({SOURCE_NAMES.get(s.source_type, "website")}'
+        f'{", " + s.published_at[:10] if s.published_at else ""}; {s.source_url})'
+        for n, s in enumerate(profile.signals, start=1)
     ) or "(none found)"
     outcomes = "\n".join(f'- {o["claim"]}: "{o["quote"]}"' for o in story.get("outcomes", [])) or "(none)"
     prompt = PROMPT.format(
@@ -309,7 +375,7 @@ def domain_of(website: str) -> str:
 def save_account(accounts, website: str, profile: CompanyProfile, score: int, breakdown: list[dict],
                  story: dict, brief: SalesBrief, warnings: list[str], pages_read: list[str],
                  jobs: dict | None = None, news: dict | None = None, github: dict | None = None,
-                 passages: dict | None = None) -> dict:
+                 passages: dict | None = None, sources: dict | None = None) -> dict:
     """Upsert one document per company, keyed by domain. On a re-run the previous
     brief and score are appended to history[] (only the last MAX_HISTORY are kept)
     and the status is kept.
@@ -326,6 +392,9 @@ def save_account(accounts, website: str, profile: CompanyProfile, score: int, br
         "signals": [s.model_dump(mode="json") for s in profile.signals],
         "score": score,
         "score_breakdown": breakdown,
+        "score_version": SCORE_VERSION,
+        # {jobs, news, github, pages_read, chunks_indexed, passages_used}: how much each source added.
+        "sources_summary": sources or None,
         "matched_story": {
             "company": story["company"], "url": story["source_url"], "summary": story["summary"],
             "score": story["score"], "industry_filter": story.get("industry_filter"),
@@ -341,7 +410,7 @@ def save_account(accounts, website: str, profile: CompanyProfile, score: int, br
         "passages": passages or None,  # Passages Atlas picked for Gemini (brief/passages.py).
         "updated_at": now,
     }
-    previous_version = {"brief": "$brief", "score": "$score",
+    previous_version = {"brief": "$brief", "score": "$score", "score_version": "$score_version",
                         "score_breakdown": "$score_breakdown", "updated_at": "$updated_at"}
     update = [
         # Stage 1 reads the current document: archive its brief (if any), keep status/created_at.

@@ -164,6 +164,14 @@ PASSAGE_ORIGINS = {"vector": "Vector Search", "keyword": "keyword scan", "both":
                    "added": "added (home page or source mix)"}
 
 
+SIGNAL_GROUPS = ["Jobs", "News", "GitHub", "Website"]
+
+
+def signal_group(signal: dict) -> str:
+    """Jobs, News, GitHub or Website (pasted extra links and undated old signals count as Website)."""
+    return {"job": "Jobs", "news": "News", "github": "GitHub"}.get(signal.get("source_type") or "", "Website")
+
+
 def show_passages(passages: dict | None) -> None:
     """The chunks Atlas chose for Gemini (brief/passages.py), if this brief used them."""
     if not passages or not passages.get("picked"):
@@ -185,7 +193,8 @@ def brief_as_markdown(a: dict) -> str:
     lines = [
         f"# Account brief: {a['company']}",
         f"{p['industry']}, {p['hq_country'] or 'HQ not stated'}. {p['what_they_do']}",
-        "", f"## Score: {a['score']}/100"] + [f"- +{x['points']} {x['reason']}" for x in a["score_breakdown"]] + [
+        "", f"## Score: {a['score']}/100"] + [f"- +{x['points']} {x['reason']}" + (f" ({x['maths']})" if x.get("maths") else "")
+                                              for x in a["score_breakdown"]] + [
         "", "## Why now"] + [f"- {x}" for x in b["why_now"]] + [
         "", "## Who to contact (hypothesis)"] + [f"- {x['side']}: {x['role']} - {x['why']}" for x in b["personas"]] + [
         "", "## Value hook", b["value_hook"],
@@ -205,7 +214,9 @@ def show_brief(a: dict) -> None:
     st.header(a["company"], anchor=False)
     st.markdown(" ".join([badge(p["industry"], "green", ":material/domain:"),
                           badge(p["hq_country"] or "HQ not stated", "gray", ":material/location_on:"),
-                          badge(a["status"], "blue", ":material/flag:")]))
+                          badge(a["status"], "blue", ":material/flag:")]
+                         + ([badge("Existing MongoDB user: expansion play", "violet", ":material/trending_up:")]
+                            if any(x["type"] == SignalType.MONGODB_IN_USE.value for x in a["signals"]) else [])))
     st.markdown(md(p["what_they_do"]))
 
     col_score, col_story = st.columns(2)
@@ -246,10 +257,15 @@ def show_brief(a: dict) -> None:
 
     with evidence:
         st.subheader(f"Score: {a['score']}/100", anchor=False)
-        rows = [{"Reason": x["reason"], "Points": x["points"]} for x in a["score_breakdown"]]
+        rows = [{"Reason": x["reason"], "Points": x["points"], "Maths": x.get("maths", ""),
+                 "Evidence": x.get("evidence") or None} for x in a["score_breakdown"]]
         if rows:
-            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-            st.caption(f"Total {sum(r['Points'] for r in rows)} (capped at 100).")
+            st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                         column_config={"Evidence": st.column_config.LinkColumn("Evidence", display_text="link")})
+            how = (" Each signal: base points × source strength (job ad or GitHub 1.0, news 0.9, extra link 0.8, "
+                   "website 0.7) × recency (≤90 days 1.0, ≤180 0.75, ≤365 0.5, older 0.25, no date 0.8)."
+                   if a.get("score_version", 1) >= 2 else " Scored with the older version 1 rules.")
+            st.caption(f"Total {sum(r['Points'] for r in rows)} (capped at 100).{how}")
         else:
             st.write("No scoring signals found.")
         if a.get("jobs"):
@@ -265,12 +281,20 @@ def show_brief(a: dict) -> None:
                         f"{g['repos_checked']} recent repos, {g['files_read']} dependency files read")
         st.subheader("Signals", anchor=False)
         st.caption("Every quote is word for word from the linked page.")
-        for n, x in enumerate(a["signals"], start=1):
-            with st.container(border=True):
-                used = " " + badge("used in the brief", "green", ":material/check:") if n in b["signals_used"] else ""
-                st.markdown(f"**{n}. {label(x['type'])}**{used}")
-                st.html(f'<div class="abb-quote">"{html.escape(x["quote"])}"</div>')
-                st.markdown(f"[Source]({x['source_url']})")
+        numbered = list(enumerate(a["signals"], start=1))
+        for group in SIGNAL_GROUPS:
+            in_group = [(n, x) for n, x in numbered if signal_group(x) == group]
+            if not in_group:
+                continue
+            st.markdown(f"**{group}** ({len(in_group)})")
+            for n, x in in_group:
+                with st.container(border=True):
+                    used = " " + badge("used in the brief", "green", ":material/check:") if n in b["signals_used"] else ""
+                    tech = " " + badge(x["technology"], "gray", ":material/database:") if x.get("technology") else ""
+                    st.markdown(f"**{n}. {label(x['type'])}**{tech}{used}")
+                    st.html(f'<div class="abb-quote">"{html.escape(x["quote"])}"</div>')
+                    date = f" · {x['published_at'][:10]}" if x.get("published_at") else ""
+                    st.markdown(f"[Source]({x['source_url']}){date}")
         show_passages(a.get("passages"))
 
     with story:
@@ -362,8 +386,10 @@ def show_dashboard(numbers: dict) -> None:
         ("By status", pd.DataFrame(numbers["by_status"]), "status", "count"),
         ("Avg score by industry", pd.DataFrame(numbers["by_industry"]), "industry", "avg_score"),
         ("Signals found", pd.DataFrame(numbers["signal_types"]), "signal", "count"),
+        ("Signals by source", pd.DataFrame(numbers["by_source"]), "source", "count"),
+        ("Technologies seen", pd.DataFrame(numbers["technologies"]), "technology", "count"),
     ]
-    for (title, frame, x, y), column in zip(charts, st.columns(3)):
+    for (title, frame, x, y), column in zip(charts, st.columns(3) + st.columns(3)):
         with column:
             st.markdown(f"**{title}**")
             if frame.empty:
@@ -453,9 +479,10 @@ def page_how_it_works() -> None:
     st.markdown("""
 **The flow**
 
-1. **Read public pages.** Home, About, Careers and the engineering blog (max 4 pages,
-   10 s each). Respects robots.txt; never logs in; no LinkedIn or paywalls. Pages read
-   in the last 24 hours come from a MongoDB cache instead of the web.
+1. **Read public pages.** Up to 30 pages picked from the site's sitemap (careers,
+   engineering, news, investors, strategy, ...; 10 s each, 60 s in total). Respects
+   robots.txt; never logs in; no LinkedIn or paywalls. Pages read in the last 24 hours
+   come from a MongoDB cache instead of the web.
    **Job ads:** if the careers page links to a public job board (Greenhouse, Lever,
    Ashby, SmartRecruiters, Personio or Workable), the app reads its public feed and
    keeps the 25 newest technical roles, with dates. Emails and phone numbers are removed.
@@ -468,8 +495,13 @@ def page_how_it_works() -> None:
    database, competitor database, MongoDB already in use, modernisation, scale or
    real time, new market or product), each with a quote. Job ads count as the
    strongest evidence of the stack a company really uses. **Any quote that isn't word for word on the page is dropped.**
-3. **Score 0–100.** +25 AI initiative, +20 hiring engineers, +20 legacy database,
-   +15 modernisation, +10 scale or real time, +10 HQ in EMEA. The breakdown is saved.
+3. **Score 0–100.** Each signal type counts once, using its strongest signal: base
+   points (+25 AI initiative, +20 hiring engineers, +20 legacy database, +15 competitor
+   database, +15 modernisation, +15 MongoDB already in use, +10 scale or real time)
+   × source strength (job ad or GitHub 1.0, news 0.9, extra link 0.8, website 0.7)
+   × recency (up to 90 days 1.0, 180 days 0.75, a year 0.5, older 0.25, no date 0.8).
+   Plus +5 for 5 or more open technical roles (+10 for 20 or more) and +10 for an HQ in
+   EMEA. Every line in the saved breakdown shows its maths.
 4. **Match a customer story.** Hybrid search finds the closest of 48 public MongoDB
    customer stories, pre-filtered to the same industry: `$rankFusion` merges Atlas
    Vector Search (meaning) with Atlas Search (keywords), so a story ranked high in both
