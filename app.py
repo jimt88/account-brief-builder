@@ -20,6 +20,8 @@ import hmac
 import html
 import json
 import os
+import re
+import time
 
 import pandas as pd
 import streamlit as st
@@ -119,6 +121,114 @@ CSS = """
 .abb-feature em {font-style: normal; color: #00684A; font-weight: 600;}
 .abb-kicker {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
              color: #00684A; margin: 8px 0 2px;}
+.abb-flow {border: 1px solid #E1E7E5; border-radius: 14px; padding: 16px; background: #F9FBFA;}
+.abb-flow-head {display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 12px;}
+.abb-flow-head b {color: #001E2B; font-size: 1rem;}
+.abb-flow-head > span {font-size: 0.78rem; color: #5C6C75;}
+.abb-progress {height: 8px; border-radius: 4px; background: #E8EDEB; overflow: hidden; margin-bottom: 14px;}
+.abb-progress i {display: block; height: 100%; border-radius: 4px; background-size: 28px 28px;
+                 background-image: repeating-linear-gradient(45deg, #00A35C 0 10px, #00ED64 10px 20px);
+                 animation: abb-stripes 0.8s linear infinite;}
+.abb-progress.abb-done i {animation: none; background: #00A35C;}
+.abb-step {display: flex; gap: 12px; position: relative; padding-bottom: 14px;}
+.abb-step:last-child {padding-bottom: 0;}
+.abb-step:not(:last-child)::before {content: ""; position: absolute; left: 13px; top: 32px; bottom: 4px;
+                                    width: 2px; background: #E1E7E5;}
+.abb-step.abb-ok:not(:last-child)::before {background: #00A35C;}
+.abb-dot {width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center;
+          justify-content: center; font-size: 0.8rem; font-weight: 600; background: #FFFFFF;
+          border: 2px solid #C1CCC6; color: #5C6C75; box-sizing: border-box; position: relative;}
+.abb-step b {display: block; color: #001E2B; font-size: 0.92rem;}
+.abb-step span {font-size: 0.8rem; color: #5C6C75;}
+.abb-ok .abb-dot {background: #00A35C; border-color: #00A35C; color: #FFFFFF;}
+.abb-now .abb-dot {border-color: #00ED64; color: #00684A; animation: abb-pulse 1.4s ease-out infinite;}
+.abb-now .abb-dot::after {content: ""; position: absolute; inset: -6px; border-radius: 50%;
+                          border: 2px solid transparent; border-top-color: #00A35C; animation: abb-spin 0.9s linear infinite;}
+.abb-now b {color: #00684A;}
+.abb-err .abb-dot {background: #DB3030; border-color: #DB3030; color: #FFFFFF;}
+.abb-live {font-size: 0.78rem; color: #00684A; margin-top: 2px; overflow-wrap: anywhere;}
+.abb-dots::after {content: ""; animation: abb-ellipsis 1.2s steps(4) infinite;}
+@keyframes abb-ellipsis {0% {content: "";} 25% {content: ".";} 50% {content: "..";} 75% {content: "...";}}
+@keyframes abb-pulse {0% {box-shadow: 0 0 0 0 rgba(0, 237, 100, 0.55);} 70% {box-shadow: 0 0 0 10px rgba(0, 237, 100, 0);}
+                      100% {box-shadow: 0 0 0 0 rgba(0, 237, 100, 0);}}
+@keyframes abb-spin {to {transform: rotate(360deg);}}
+@keyframes abb-stripes {from {background-position: 0 0;} to {background-position: 28px 0;}}
+[class*="st-key-excard_"] {flex: 1 1 140px !important; min-width: 140px; border-radius: 12px !important;}
+[class*="st-key-excard_on_"] {border-color: #00A35C !important; background: #E3FCF7;}
+/* Pipeline table rows. */
+[class*="st-key-prow_"] {padding: 4px 8px; border-bottom: 1px solid #E8EDEB; border-radius: 6px;}
+[class*="st-key-prow_"]:last-child {border-bottom: none;}
+[class*="st-key-prow_"]:not(.st-key-prow_head):hover {background: #F5F7F6;}
+.st-key-prow_head {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+                   color: #5C6C75; border-bottom: 1px solid #C1CCC6;}
+.st-key-prow_head p {font-size: 0.75rem !important;}
+[class*="st-key-pco_"] button {justify-content: flex-start; text-align: left; font-weight: 600; color: #00684A;}
+[class*="st-key-pco_"] button:hover {text-decoration: underline;}
+[class*="st-key-psig_"] p {font-size: 0.85rem; color: #3D4F58;}
+@media (max-width: 700px) {
+  [class*="st-key-prow_"] > div:has(> [class*="st-key-psig_"]), [class*="st-key-prow_"] > div:has(> [class*="st-key-pdate_"]) {display: none !important;}
+  [class*="st-key-prow_"] {flex-wrap: nowrap !important;}
+  [class*="st-key-prow_"] > * {min-width: 0;}
+  /* Streamlit puts the fixed width on the wrapper around each keyed container. */
+  [class*="st-key-prow_"] > div:has(> [class*="st-key-pco_"]) {flex: 1 1 0 !important; width: auto !important; min-width: 0 !important;}
+  [class*="st-key-pco_"], [class*="st-key-pst_"] {width: auto !important;}
+  [class*="st-key-prow_"] > div:has(> [class*="st-key-pst_"]) {flex: 0 0 124px !important; width: 124px !important;}
+}
+/* Dashboard. */
+.abb-kpis {display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;}
+.abb-kpi {border: 1px solid #E1E7E5; border-top: 4px solid #00ED64; border-radius: 12px; padding: 12px 16px;
+          background: #FFFFFF;}
+.abb-kpi span {display: block; font-size: 0.78rem; font-weight: 600; color: #5C6C75;}
+.abb-kpi b {display: block; font-size: 2rem; font-weight: 600; color: #001E2B; line-height: 1.2;}
+.abb-kpi small {font-size: 0.78rem; color: #5C6C75;}
+.abb-chevrons {display: flex; gap: 4px; align-items: stretch;}
+.abb-chev, .abb-parked {flex: 1 1 0; min-width: 0; padding: 10px 14px 10px 26px; background: #F5F7F6;
+                        clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%, 14px 50%);}
+.abb-chev:first-child {padding-left: 14px; border-radius: 10px 0 0 10px;
+                       clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 50%, calc(100% - 14px) 100%, 0 100%);}
+.abb-chev b, .abb-parked b {display: block; font-size: 1.5rem; font-weight: 600; color: #001E2B; line-height: 1.2;}
+.abb-chev span, .abb-parked span {display: block; font-size: 0.8rem; color: #3D4F58; white-space: nowrap;
+                                  overflow: hidden; text-overflow: ellipsis;}
+.abb-chev small, .abb-parked small {font-size: 0.72rem; color: #5C6C75;}
+.abb-chev.abb-win {background: #00684A;}
+.abb-chev.abb-win b, .abb-chev.abb-win span, .abb-chev.abb-win small {color: #FFFFFF;}
+.abb-parked {flex: 0 0 110px; margin-left: 10px; clip-path: none; border-radius: 10px; padding-left: 14px;
+             border: 1px dashed #C1CCC6; background: #FFFFFF;}
+@media (max-width: 700px) {
+  .abb-chevrons {display: grid; grid-template-columns: 1fr 1fr; gap: 8px;}
+  .abb-chev, .abb-chev:first-child, .abb-parked {clip-path: none; border-radius: 10px; padding-left: 14px; margin-left: 0;}
+}
+/* How it works: scoring and tables. */
+.abb-formula {display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px;}
+.abb-formula > i {font-style: normal; font-size: 1.4rem; font-weight: 600; color: #00684A;}
+.abb-term {flex: 1 1 130px; border: 1px solid #C1CCC6; border-radius: 12px; padding: 10px 14px; background: #FFFFFF;}
+.abb-term small {display: block; font-size: 0.7rem; color: #5C6C75; text-transform: uppercase; letter-spacing: 0.05em;}
+.abb-term b {display: block; font-size: 1.15rem; color: #001E2B;}
+.abb-term span {font-size: 0.8rem; color: #00684A; font-weight: 600;}
+.abb-term-out {background: #00684A; border-color: #00684A;}
+.abb-term-out small, .abb-term-out b, .abb-term-out span {color: #FFFFFF;}
+.abb-note {font-size: 0.88rem; color: #3D4F58; margin: 4px 0 12px;}
+.abb-chips {display: flex; flex-wrap: wrap; gap: 8px;}
+.abb-chip {border: 1px solid #A6E5D0; background: #E3FCF7; border-radius: 999px; padding: 4px 12px;
+           font-size: 0.82rem; color: #001E2B;}
+.abb-chip b {color: #00684A;}
+.abb-table {width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid #E1E7E5;
+            border-radius: 12px; overflow: hidden; font-size: 0.86rem; background: #FFFFFF;}
+.abb-table th {background: #001E2B; color: #FFFFFF; text-align: left; padding: 10px 14px; font-weight: 600;}
+.abb-table td {padding: 9px 14px; border-top: 1px solid #E8EDEB; color: #3D4F58; vertical-align: top;}
+.abb-table td b {color: #001E2B;}
+.abb-table .abb-n {text-align: right; white-space: nowrap;}
+.abb-table .abb-group td {background: #E3FCF7; color: #00684A; font-weight: 600; font-size: 0.72rem;
+                          letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 14px;}
+.abb-table .abb-why {color: #00684A;}
+@media (max-width: 700px) {
+  .abb-stack thead {display: none;}
+  .abb-stack tr, .abb-stack td {display: block;}
+  .abb-stack td {border-top: none; padding: 2px 14px;}
+  .abb-stack tr:not(.abb-group) {border-top: 1px solid #E8EDEB; padding: 8px 0;}
+  .abb-stack .abb-group td {padding: 6px 14px;}
+  .abb-stack .abb-why::before {content: "Why: "; font-weight: 600;}
+}
 </style>
 """
 
@@ -186,6 +296,27 @@ def label(signal_type: str) -> str:
     return SIGNAL_LABELS.get(SignalType(signal_type), signal_type)
 
 
+def cite(text: str, signals: list[dict]) -> str:
+    """Markdown with every "[n]" linked to signal n's source page."""
+    def link(match: re.Match) -> str:
+        n = int(match.group(1))
+        if not 1 <= n <= len(signals):
+            return match.group(0)
+        url = signals[n - 1]["source_url"].replace("<", "%3C").replace(">", "%3E")
+        return f'[\\[{n}\\]](<{url}> "Signal {n}: {label(signals[n - 1]["type"])}")'
+    return re.sub(r"\[(\d+)\]", link, md(text))
+
+
+def cite_html(text: str, signals: list[dict]) -> str:
+    """HTML version of cite(), for the value hook box."""
+    def link(match: re.Match) -> str:
+        n = int(match.group(1))
+        if not 1 <= n <= len(signals):
+            return match.group(0)
+        return f'<a href="{html.escape(signals[n - 1]["source_url"])}" target="_blank">[{n}]</a>'
+    return re.sub(r"\[(\d+)\]", link, html.escape(text))
+
+
 def hero() -> None:
     """The dark MongoDB-green banner at the top of every page."""
     st.html(CSS + """
@@ -197,10 +328,10 @@ def hero() -> None:
 </div>""")
 
 
-def callout(title: str, text: str) -> None:
+def callout(title: str, text: str, signals: list[dict] | None = None) -> None:
     """A highlighted box, used for the value hook."""
     st.html(f'<div class="abb-callout"><div class="abb-label">{html.escape(title)}</div>'
-            f'<div class="abb-text">{html.escape(text)}</div></div>')
+            f'<div class="abb-text">{cite_html(text, signals or [])}</div></div>')
 
 
 def badge(text: str, colour: str, icon: str = "") -> str:
@@ -310,14 +441,14 @@ def show_brief(a: dict) -> None:
          ":material/auto_stories: Story", ":material/history: Details"])
 
     with outreach:
-        callout("Value hook", b["value_hook"])
+        callout("Value hook", b["value_hook"], a["signals"])
         st.html('<div class="abb-kicker">Why now</div>')
-        st.markdown("\n".join(f"- {md(x)}" for x in b["why_now"]))
+        st.markdown("\n".join(f"- {cite(x, a['signals'])}" for x in b["why_now"]))
         st.html('<div class="abb-kicker">Who to contact (hypotheses to check)</div>')
         for column, x in zip(st.columns(len(b["personas"]) or 1), b["personas"]):
             with column.container(border=True):
-                st.markdown(f"**{x['side']}:** {md(x['role'])}")
-                st.caption(x["why"])
+                st.markdown(f"**{x['side']}:** {cite(x['role'], a['signals'])}")
+                st.caption(cite(x["why"], a["signals"]))
         call, email = st.tabs([":material/call: Cold-call opener (30 s)", ":material/mail: Email"])
         with call:
             st.code(b["cold_call_opener"], language=None, wrap_lines=True)
@@ -325,7 +456,7 @@ def show_brief(a: dict) -> None:
             st.code(f"Subject: {b['email']['subject']}\n\n{b['email']['body']}", language=None, wrap_lines=True)
         st.caption("Copy with the icon at the top right of the text.")
         st.html('<div class="abb-kicker">Discovery questions</div>')
-        st.markdown("\n".join(f"{n}. {md(q)}" for n, q in enumerate(b["discovery_questions"], start=1)))
+        st.markdown("\n".join(f"{n}. {cite(q, a['signals'])}" for n, q in enumerate(b["discovery_questions"], start=1)))
 
     with evidence:
         st.subheader("Why this score", anchor=False)
@@ -401,7 +532,21 @@ def show_brief(a: dict) -> None:
 
 # ---- Pages ------------------------------------------------------------------
 
-EXAMPLES = [("Monzo", "monzo.com"), ("DSV", "dsv.com"), ("Ocado Group", "ocadogroup.com")]
+EXAMPLES = [  # (company, website, industry, why it's a good demo)
+    ("Monzo", "monzo.com", "Fintech", "Lots of public job ads"),
+    ("Mistral AI", "mistral.ai", "AI", "Strong AI and hiring signals"),
+    ("DSV", "dsv.com", "Logistics", "Global freight at scale"),
+    ("Ocado Group", "ocadogroup.com", "Retail tech", "Robotics and AI"),
+]
+
+# The 5 steps build_brief reports as "1/5 ..." to "5/5 ...".
+BUILD_STEPS = [
+    ("Read", "Website (up to 30 pages), job ads, news and GitHub"),
+    ("Find and score signals", "Atlas picks the best passages; Gemini keeps only exact quotes; score 0-100"),
+    ("Match a story", "Closest MongoDB customer story, by meaning and keywords"),
+    ("Write", "Value hook, call opener, email and discovery questions"),
+    ("Save", "One write to MongoDB Atlas, keeping the last 5 versions"),
+]
 
 
 def use_example(company: str, website: str) -> None:
@@ -410,31 +555,67 @@ def use_example(company: str, website: str) -> None:
     st.session_state.new_website = website
 
 
+def flow_html(step: int = 0, done: bool = False, failed: bool = False, seconds: float = 0,
+              latest: str = "", share: float = 0) -> str:
+    """The 5 build steps. Idle (step 0) it explains them; while building, the current
+    step spins and the bar moves; finished steps get a tick."""
+    if failed:
+        head = "<b>Stopped</b><span>See the message on the left</span>"
+    elif done:
+        head = f"<b>Brief ready</b><span>{seconds:.0f} s</span>"
+    elif step:
+        head = f'<b>Building<span class="abb-dots"></span></b><span>{seconds:.0f} s · usually 1-2 min</span>'
+    else:
+        head = "<b>What happens</b><span>About 1-2 minutes</span>"
+    bar = ""
+    if step or done:
+        bar = (f'<div class="abb-progress{" abb-done" if done or failed else ""}">'
+               f'<i style="width:{100 if done else max(share, 0.04) * 100:.0f}%"></i></div>')
+    rows = []
+    for n, (title, text) in enumerate(BUILD_STEPS, start=1):
+        state = ("abb-ok" if done or n < step else "abb-err" if failed and n == step
+                 else "abb-now" if n == step else "")
+        live = f'<div class="abb-live">{html.escape(latest)}</div>' if state == "abb-now" and latest else ""
+        dot = "✓" if state == "abb-ok" else "!" if state == "abb-err" else str(n)
+        rows.append(f'<div class="abb-step {state}"><div class="abb-dot">{dot}</div><div><b>{html.escape(title)}</b>'
+                    f"<span>{html.escape(text)}</span>{live}</div></div>")
+    return CSS + f'<div class="abb-flow"><div class="abb-flow-head">{head}</div>{bar}{"".join(rows)}</div>'
+
+
 def recent_accounts() -> None:
     try:
-        rows = sorted(pipeline_rows(accounts()), key=lambda r: r.get("updated_at") or 0, reverse=True)[:5]
+        rows = sorted(pipeline_rows(accounts()), key=lambda r: r.get("updated_at") or 0, reverse=True)[:4]
     except Exception:
         return  # The form still works; the list is a nice-to-have.
     if not rows:
         return
-    st.html('<div class="abb-kicker">Recent accounts</div>')
+    st.html('<div class="abb-kicker">Recently researched</div>')
     names = account_labels(rows)
-    for r in rows:
-        st.button(f"{names[r['domain']]} · {r['score']}/100", key=f"recent_{r['domain']}",
-                  on_click=open_brief, args=(r["domain"],), width="stretch", icon=":material/description:")
+    for column, r in zip(st.columns(4), rows):
+        with column.container(border=True, height="stretch"):
+            st.markdown(f"**{md(names[r['domain']])}** " + badge(f"{r['score']}/100", score_colour(r["score"])))
+            st.caption(md(r["top_signal"]))
+            st.button("Open brief", key=f"recent_{r['domain']}", on_click=open_brief, args=(r["domain"],),
+                      type="tertiary", icon=":material/arrow_forward:", icon_position="right")
 
 
 def page_new_account() -> None:
     form_col, side_col = st.columns([3, 2], gap="large")
     with form_col:
         st.subheader("Research a new account", anchor=False)
-        st.caption("Type a company and its website. The app reads its public website, job ads, news and "
-                   "GitHub, keeps only quotes it can verify, and writes a call-ready brief.")
-        with st.container(horizontal=True, wrap=True, vertical_alignment="center"):
-            st.markdown("**Try an example:**", width="content")
-            for company, website in EXAMPLES:
-                st.button(company, key=f"example_{website}", on_click=use_example,
-                          args=(company, website), type="tertiary", icon=":material/bolt:")
+        st.caption("Type a company and its website, or start with an example. The app reads its public "
+                   "website, job ads, news and GitHub, keeps only quotes it can verify, and writes a call-ready brief.")
+        st.html('<div class="abb-kicker">Start with an example</div>')
+        with st.container(horizontal=True, wrap=True, gap="small"):
+            for company, website, industry, hint in EXAMPLES:
+                chosen = st.session_state.get("new_website") == website
+                with st.container(border=True, key=f"excard_{'on' if chosen else 'off'}_{website.split('.')[0]}"):
+                    st.markdown(f"**{company}**  \n:gray[{industry}]")
+                    st.caption(hint)
+                    st.button("Selected" if chosen else "Use", key=f"example_{website}", on_click=use_example,
+                              args=(company, website), type="primary" if chosen else "secondary",
+                              icon=":material/check:" if chosen else ":material/bolt:", width="stretch")
+        st.html('<div class="abb-kicker">Or type your own</div>')
         with st.form("company", border=True):
             name_col, site_col = st.columns(2)
             company = name_col.text_input("Company name", placeholder="Ocado Group", key="new_company")
@@ -448,36 +629,60 @@ def page_new_account() -> None:
                 )
             go = st.form_submit_button("Build brief", type="primary", width="stretch", icon=":material/bolt:")
     with side_col:
-        st.html('<div class="abb-kicker">What happens</div>')
-        for icon, title, text in [
-            (":material/travel_explore:", "Read", "Website (up to 30 pages), job ads, news and GitHub"),
-            (":material/fact_check:", "Verify", "Keeps only signals with an exact quote"),
-            (":material/speed:", "Score", "0-100 from signal, source and age"),
-            (":material/hub:", "Match and write", "Closest MongoDB story, then the brief"),
-        ]:
-            st.markdown(f"{icon} **{title}** · {text}")
-        recent_accounts()
+        flow = st.empty()
+        flow.html(flow_html())
+    recent_box = st.container()  # Filled last, so a brief built just now is listed.
+    try:
+        build_from_form(go, company, website, extra, form_col, flow)
+    finally:
+        with recent_box:
+            recent_accounts()
+
+
+def build_from_form(go: bool, company: str, website: str, extra: str, form_col, flow) -> None:
     if not go:
         return
     if not company.strip() or not website.strip():
-        st.error("Please fill in both the company name and the website.")
+        form_col.error("Please fill in both the company name and the website.")
         return
-    with st.status("Building the brief (1-2 minutes) ...", expanded=True) as status:
-        try:
-            result = build_brief(company.strip(), website.strip(), get_db(), get_gemini(),
-                                 progress=lambda message: st.markdown(f":green[:material/check:] {md(message)}"),
-                                 extra_urls=extra.split())
-            status.update(label=f"Brief ready: score {result.score}/100", state="complete", expanded=False)
-        except BriefError as exc:
-            status.update(label="Couldn't build the brief", state="error")
-            st.error(str(exc))
-            return
-        except Exception as exc:
-            status.update(label="Something went wrong", state="error")
-            st.error(friendly_error(exc))
-            return
-    st.button("Open the brief", type="primary", width="stretch", icon=":material/description:",
-              on_click=open_brief, args=(result.account["domain"],))
+    start, state = time.monotonic(), {"step": 1, "reads": 0, "latest": ""}
+
+    def share() -> float:
+        # Step 1 is the long one (reading pages), so it creeps forward with each page read.
+        within = min(state["reads"], 40) / 40 * 0.18 if state["step"] == 1 else 0.05
+        return (state["step"] - 1) / len(BUILD_STEPS) + within
+
+    def on_progress(message: str) -> None:
+        number = re.match(r"(\d)/5 ", message)
+        if number:
+            state["step"] = int(number.group(1))
+        elif state["step"] == 1:
+            state["reads"] += 1
+        state["latest"] = message[4:] if number else message
+        flow.html(flow_html(state["step"], seconds=time.monotonic() - start, latest=state["latest"], share=share()))
+        log.markdown(f":green[:material/check:] {md(message)}")
+
+    with form_col:
+        flow.html(flow_html(1, seconds=0, latest=f"Reading {website.strip()} ...", share=0.02))
+        with st.status("Building the brief (1-2 minutes) ...", expanded=False) as status:
+            log = st.container()
+            try:
+                result = build_brief(company.strip(), website.strip(), get_db(), get_gemini(),
+                                     progress=on_progress, extra_urls=extra.split())
+            except BriefError as exc:
+                status.update(label="Couldn't build the brief", state="error", expanded=True)
+                flow.html(flow_html(state["step"], failed=True))
+                st.error(str(exc))
+                return
+            except Exception as exc:
+                status.update(label="Something went wrong", state="error", expanded=True)
+                flow.html(flow_html(state["step"], failed=True))
+                st.error(friendly_error(exc))
+                return
+            status.update(label=f"Brief ready: score {result.score}/100 (details)", state="complete")
+        flow.html(flow_html(done=True, seconds=time.monotonic() - start))
+        st.button("Open the brief", type="primary", width="stretch", icon=":material/description:",
+                  on_click=open_brief, args=(result.account["domain"],))
 
 
 def bar_card(title: str, rows: list[tuple[str, str, float]]) -> str:
@@ -494,26 +699,56 @@ def counted(rows: list[dict], name: str) -> list[tuple[str, str, float]]:
     return [(str(r[name]), str(r["count"]), r["count"] / top) for r in rows]
 
 
+def kpis_html(totals: dict, statuses: dict) -> str:
+    accounts_total, meetings = totals["accounts"], statuses.get("Meeting set", 0)
+    share = f"{meetings / accounts_total:.0%} of accounts" if accounts_total else "none yet"
+    tiles = [("Accounts", accounts_total, "researched and saved"),
+             ("Avg score", totals["avg_score"], "out of 100"),
+             ("Score 50+", totals["score_50_plus"], "call these first"),
+             ("Meetings set", meetings, share)]
+    return CSS + '<div class="abb-kpis">' + "".join(
+        f'<div class="abb-kpi"><span>{name}</span><b>{value}</b><small>{html.escape(sub)}</small></div>'
+        for name, value, sub in tiles) + "</div>"
+
+
+def funnel_html(statuses: dict) -> str:
+    """New → Researched → Contacted → Meeting set as arrows; Not now set apart."""
+    total = sum(statuses.values()) or 1
+    stages = "".join(
+        f'<div class="abb-chev{" abb-win" if status == "Meeting set" else ""}"><b>{statuses.get(status, 0)}</b>'
+        f"<span>{html.escape(status)}</span><small>{statuses.get(status, 0) / total:.0%}</small></div>"
+        for status in STATUSES if status != "Not now")
+    parked = statuses.get("Not now", 0)
+    return CSS + (f'<div class="abb-chevrons">{stages}<div class="abb-parked"><b>{parked}</b>'
+                  f"<span>Not now</span><small>{parked / total:.0%}</small></div></div>")
+
+
 def show_dashboard(numbers: dict) -> None:
-    """Number tiles, a status funnel and ranked lists, all from one $facet result."""
-    totals = numbers["totals"]
+    """Number tiles, a status funnel, the top accounts and ranked lists, all from one $facet result."""
     statuses = {r["status"]: r["count"] for r in numbers["by_status"]}
-    with st.container(horizontal=True, wrap=True):
-        st.metric("Accounts", totals["accounts"], border=True)
-        st.metric("Avg score", f"{totals['avg_score']}/100", border=True)
-        st.metric("Score 50+", totals["score_50_plus"], border=True, help="Accounts worth calling first.")
-        st.metric("Meetings set", statuses.get("Meeting set", 0), border=True)
-
+    st.html(kpis_html(numbers["totals"], statuses))
     st.html('<div class="abb-kicker">Pipeline by status</div>')
-    st.html(CSS + '<div class="abb-funnel">' + "".join(
-        f'<div class="abb-stage{" abb-win" if status == "Meeting set" else ""}"><b>{count}</b>'
-        f"<span>{html.escape(status)}</span></div>" for status, count in statuses.items()) + "</div>")
+    st.html(funnel_html(statuses))
 
+    top_col, industry_col = st.columns(2)
+    with top_col.container(border=True, height="stretch"):
+        st.markdown("**Top accounts to call**")
+        for n, r in enumerate(numbers["top_accounts"], start=1):
+            with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+                st.markdown(f":gray[{n}]", width=16)
+                st.button(r["company"], key=f"dash_open_{r['domain']}", type="tertiary",
+                          on_click=open_brief, args=(r["domain"],), help=r.get("top_signal"))
+                st.space("stretch")
+                st.markdown(badge(f"{r['score']}/100", score_colour(r["score"])), width="content")
+        if not numbers["top_accounts"]:
+            st.caption("Nothing yet.")
+        st.caption("Click a company to open its brief.")
     industries = [(r["industry"], f"{r['avg_score']} avg · {r['count']} acct{'s' if r['count'] != 1 else ''}",
                    r["avg_score"] / 100) for r in numbers["by_industry"]]
+    industry_col.html(CSS + bar_card("Avg score by industry", industries))
+
     st.html('<div class="abb-kicker">What the research found</div>')
     st.html(CSS + '<div class="abb-grid">'
-            + bar_card("Avg score by industry", industries)
             + bar_card("Signals found", counted(numbers["signal_types"], "signal"))
             + bar_card("Where the evidence came from", counted(numbers["by_source"], "source"))
             + bar_card("Technologies seen", counted(numbers["technologies"], "technology"))
@@ -522,6 +757,18 @@ def show_dashboard(numbers: dict) -> None:
                "that runs all the groupings in a single trip to the database.")
     with st.expander("See the MongoDB query behind this page"):
         st.code(json.dumps(DASHBOARD_PIPELINE, indent=2), language="json")
+
+
+STATUS_DOTS = {"New": "⚪", "Researched": "🔵", "Contacted": "🟡", "Meeting set": "🟢", "Not now": "⚫"}
+
+
+def save_status(domain: str, company: str, key: str) -> None:
+    """Status picker callback: save straight to MongoDB."""
+    try:
+        set_status(accounts(), domain, st.session_state[key])
+        st.session_state.saved_message = f"Saved: {company} is now {st.session_state[key]}"
+    except Exception as exc:
+        st.session_state.saved_message = friendly_error(exc)
 
 
 def page_pipeline() -> None:
@@ -533,35 +780,41 @@ def page_pipeline() -> None:
     if not rows:
         st.info("No accounts yet. Build one on the New account page.")
         return
-    st.caption("Ranked by score with a MongoDB aggregation pipeline. Change a status and it's saved straight away.")
-    table = pd.DataFrame([{
-        "Company": r["company"], "Score": r["score"], "Top signal": r["top_signal"],
-        "Status": r["status"], "Updated": r["updated_at"], "domain": r["domain"],
-    } for r in rows])
-    # The editor's key changes whenever the data changes, so an old edit can never be
-    # replayed onto a different account after the ranking moves.
-    version = "|".join(f"{r['domain']}:{r['status']}:{r['updated_at']}" for r in rows)
-    edited = st.data_editor(
-        table, hide_index=True, width="stretch", key=f"pipeline_{hash(version)}",
-        height=35 * (len(table) + 1) + 3,  # Every row visible, no inner scrollbar.
-        column_order=["Company", "Score", "Top signal", "Status", "Updated"],
-        disabled=["Company", "Score", "Top signal", "Updated"],
-        column_config={
-            "Company": st.column_config.TextColumn(width=130),
-            "Top signal": st.column_config.TextColumn(width="medium"),
-            "Status": st.column_config.SelectboxColumn(options=STATUSES, required=True, width="small"),
-            "Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d", width="small"),
-            "Updated": st.column_config.DatetimeColumn(format="D MMM", width="small"),
-        },
-    )
-    changed = edited[edited["Status"] != table["Status"]]
-    if not changed.empty:
-        for _, row in changed.iterrows():
-            set_status(accounts(), row["domain"], row["Status"])
-        st.session_state.saved_message = f"Saved status for {', '.join(changed['Company'])}"
-        st.rerun()  # Reload from MongoDB so the table and the CSV show the saved status.
     if "saved_message" in st.session_state:
         st.toast(st.session_state.pop("saved_message"))
+    st.caption("Ranked by score with a MongoDB aggregation pipeline. Click a company to open its brief; "
+               "a status change is saved straight away.")
+    names = account_labels(rows)
+    with st.container(border=True, key="ptable", gap=None):
+        with st.container(horizontal=True, vertical_alignment="center", gap="small", key="prow_head"):
+            st.markdown("#", width=24)
+            with st.container(key="pco_head", width=190):
+                st.markdown("Company")
+            st.markdown("Score", width=64)
+            with st.container(key="psig_head"):
+                st.markdown("Top signal")
+            with st.container(key="pst_head", width=160):
+                st.markdown("Status")
+            with st.container(key="pdate_head", width=64):
+                st.markdown("Updated")
+        for n, r in enumerate(rows, start=1):
+            with st.container(horizontal=True, vertical_alignment="center", gap="small", key=f"prow_{n}"):
+                st.markdown(f"**{n}**", width=24)
+                with st.container(key=f"pco_{n}", width=190):
+                    st.button(names[r["domain"]], key=f"open_{r['domain']}", type="tertiary",
+                              on_click=open_brief, args=(r["domain"],))
+                st.markdown(badge(str(r["score"]), score_colour(r["score"])), width=64)
+                with st.container(key=f"psig_{n}"):
+                    st.markdown(md(r["top_signal"]))
+                # The key includes the saved status, so a fresh picker appears after each change.
+                key = f"status_{r['domain']}_{r['status']}"
+                with st.container(key=f"pst_{n}", width=160):
+                    st.selectbox("Status", STATUSES, index=STATUSES.index(r["status"]) if r["status"] in STATUSES else 0,
+                                 key=key, format_func=lambda s: f"{STATUS_DOTS.get(s, '')} {s}",
+                                 label_visibility="collapsed", filter_mode=None,
+                                 on_change=save_status, args=(r["domain"], r["company"], key))
+                with st.container(key=f"pdate_{n}", width=64):
+                    st.caption(f"{r['updated_at']:%d %b}" if r.get("updated_at") else "-")
 
     st.download_button("Export CSV (Salesforce lead columns)", pipeline_csv(rows), icon=":material/download:",
                        file_name="pipeline.csv", mime="text/csv", width="stretch")
@@ -585,10 +838,15 @@ def page_brief() -> None:
     if not rows:
         st.info("No accounts yet. Build one on the New account page.")
         return
+    rows = sorted(rows, key=lambda r: (r["company"].lower(), r["domain"]))
+    names, scores = account_labels(rows), {r["domain"]: r["score"] for r in rows}
     domains = [r["domain"] for r in rows]
     selected = st.session_state.get("selected")
-    domain = st.selectbox("Account", domains, index=domains.index(selected) if selected in domains else 0,
-                          format_func=account_labels(rows).get)
+    domain = st.selectbox(f"Account ({len(domains)}, A-Z)", domains,
+                          index=domains.index(selected) if selected in domains else 0,
+                          format_func=lambda d: f"{names[d]} · {scores[d]}/100", filter_mode="contains",
+                          placeholder="Type to search accounts", icon=":material/search:",
+                          help="Click and start typing a company name to search.")
     st.session_state.selected = domain
     try:
         account = accounts().find_one({"domain": domain})
@@ -649,39 +907,48 @@ def architecture_html() -> str:
         '<span><i class="abb-key-atlas"></i>MongoDB Atlas, free M0</span></div></div>')
 
 
-SCORING_POINTS = """
-| Signal | Points |
-|---|---|
-| AI initiative | 25 |
-| Legacy database | 20 |
-| Hiring engineers | 20 |
-| Competitor database | 15 |
-| Modernisation | 15 |
-| Uses MongoDB (expansion) | 15 |
-| Scale or real time | 10 |
-"""
-
-SCORING_SOURCE = """
-| Source | × |
-|---|---|
-| Job ad or GitHub | 1.0 |
-| News | 0.9 |
-| Pasted link | 0.8 |
-| Website | 0.7 |
-"""
-
-SCORING_AGE = """
-| Age | × |
-|---|---|
-| Up to 3 months | 1.0 |
-| Up to 6 months | 0.75 |
-| Up to a year | 0.5 |
-| Older | 0.25 |
-| No date | 0.8 |
-"""
+SCORING_POINTS = [("AI initiative", 25), ("Legacy database", 20), ("Hiring engineers", 20),
+                  ("Competitor database", 15), ("Modernisation", 15), ("Uses MongoDB (expansion)", 15),
+                  ("Scale or real time", 10)]
+SCORING_SOURCE = [("Job ad or GitHub", 1.0), ("News", 0.9), ("Pasted link", 0.8), ("Website", 0.7)]
+SCORING_AGE = [("Up to 3 months", 1.0), ("Up to 6 months", 0.75), ("Up to a year", 0.5), ("Older", 0.25),
+               ("No date", 0.8)]
+SCORING_BONUSES = [("+5", "5 or more open technical roles"), ("+10", "20 or more open technical roles (instead of +5)"),
+                   ("+10", "Headquarters in EMEA")]
+SCORING_EXAMPLE = [("AI initiative in a 1-month-old job ad", 25, 1.0, 1.0),
+                   ("The same claim on an undated website page", 25, 0.7, 0.8)]
 
 
-# (group, feature, where it's used, why it helps) for the cards on How it works.
+def scoring_html() -> str:
+    terms = [("Points", "what the signal is", "10-25"), ("Source", "where it came from", "× 0.7-1.0"),
+             ("Age", "how old it is", "× 0.25-1.0")]
+    formula = '<i>×</i>'.join(
+        f'<div class="abb-term"><small>{html.escape(label)}</small><b>{html.escape(name)}</b>'
+        f"<span>{html.escape(rng)}</span></div>" for name, label, rng in terms)
+    formula += ('<i>=</i><div class="abb-term abb-term-out"><small>one line</small><b>Line score</b>'
+                "<span>rounded</span></div>")
+    cards = (bar_card("1 · Points per signal type", [(n, str(p), p / 25) for n, p in SCORING_POINTS])
+             + bar_card("2 · × Source strength", [(n, f"× {m}", m) for n, m in SCORING_SOURCE])
+             + bar_card("3 · × Age of the evidence", [(n, f"× {m}", m) for n, m in SCORING_AGE]))
+    bonuses = "".join(f'<span class="abb-chip"><b>{html.escape(p)}</b> {html.escape(t)}</span>'
+                      for p, t in SCORING_BONUSES)
+    example = "".join(
+        f"<tr><td>{html.escape(what)}</td><td class='abb-n'>{points}</td><td class='abb-n'>× {source}</td>"
+        f"<td class='abb-n'>× {age}</td><td class='abb-n'><b>{round(points * source * age)}</b></td></tr>"
+        for what, points, source, age in SCORING_EXAMPLE)
+    return CSS + (
+        f'<div class="abb-formula">{formula}</div>'
+        '<div class="abb-note">Each signal type counts <b>once</b>, using its strongest evidence. The lines are '
+        "added up, bonuses are added, and the total is capped at <b>100</b>.</div>"
+        f'<div class="abb-grid">{cards}</div>'
+        f'<div class="abb-kicker">Bonuses</div><div class="abb-chips">{bonuses}</div>'
+        '<div class="abb-kicker">Worked example</div>'
+        '<table class="abb-table"><thead><tr><th>Evidence</th><th class="abb-n">Points</th>'
+        '<th class="abb-n">Source</th><th class="abb-n">Age</th><th class="abb-n">Score</th></tr></thead>'
+        f"<tbody>{example}</tbody></table>")
+
+
+# (group, feature, where it's used, why it helps) for the table on How it works.
 MONGODB_FEATURES = [
     ("Search and AI", "Atlas Vector Search", "Picks the 15 best page passages and the closest customer story",
      "Finds matches by meaning, next to the data"),
@@ -706,11 +973,15 @@ MONGODB_FEATURES = [
 
 
 def features_html() -> str:
-    cards = "".join(
-        f'<div class="abb-feature"><span class="abb-tag">{html.escape(group)}</span>'
-        f"<b>{html.escape(feature)}</b>{html.escape(where)}.<br><em>Why:</em> {html.escape(why)}.</div>"
-        for group, feature, where, why in MONGODB_FEATURES)
-    return CSS + f'<div class="abb-grid">{cards}</div>'
+    rows, group = [], None
+    for g, feature, where, why in MONGODB_FEATURES:
+        if g != group:
+            group = g
+            rows.append(f'<tr class="abb-group"><td colspan="3">{html.escape(g)}</td></tr>')
+        rows.append(f"<tr><td><b>{html.escape(feature)}</b></td><td>{html.escape(where)}</td>"
+                    f'<td class="abb-why">{html.escape(why)}</td></tr>')
+    return CSS + ('<table class="abb-table abb-stack"><thead><tr><th>Feature</th><th>Where it\'s used</th>'
+                  f'<th>Why</th></tr></thead><tbody>{"".join(rows)}</tbody></table>')
 
 
 def page_how_it_works() -> None:
@@ -720,18 +991,9 @@ def page_how_it_works() -> None:
                "Everything is saved in MongoDB Atlas.")
 
     st.subheader("How scoring works", anchor=False)
-    st.markdown("Each signal type counts **once**, using its strongest piece of evidence: "
-                "**points × source × age**, rounded. The total is capped at 100.")
-    points, source, age = st.columns([5, 4, 4])
-    points.markdown(SCORING_POINTS)
-    source.markdown(SCORING_SOURCE)
-    age.markdown(SCORING_AGE)
-    st.markdown("**Bonuses:** +5 for 5 or more open technical roles (+10 for 20 or more), "
-                "+10 for a headquarters in EMEA.")
-    st.info("**Example:** an AI initiative in a 1-month-old job ad scores 25 × 1.0 × 1.0 = **25**. "
-            "The same claim on an undated website page scores 25 × 0.7 × 0.8 = **14**. "
-            "Fresh, hard evidence ranks an account higher.", icon=":material/calculate:")
-    st.caption("The Evidence tab of every brief shows each line's maths and a link to its source.")
+    st.html(scoring_html())
+    st.caption("Fresh, hard evidence ranks an account higher. The Evidence tab of every brief shows each "
+               "line's maths and a link to its source.")
 
     st.subheader("Architecture", anchor=False)
     st.caption("What happens to one brief, stage by stage. White is the app; green is MongoDB Atlas.")
