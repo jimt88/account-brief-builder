@@ -472,7 +472,9 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
         pages[0].found_links = list(dict.fromkeys(pages[0].found_links + thin_page_links))
 
     # Cache the home page with the links that worked, so next time needs no downloads.
-    if pages and not pages[0].cached and pages[0].url == home_url and len(pages[0].text) >= MIN_CHARS:
+    # Not after a timeout: the next brief should try the pages we didn't get to.
+    if (pages and not pages[0].cached and pages[0].url == home_url and len(pages[0].text) >= MIN_CHARS
+            and not out_of_time):
         store_page(cache, home, pages[0], links=read_links)
     return [p for p in pages if len(p.text) >= MIN_CHARS]
 
