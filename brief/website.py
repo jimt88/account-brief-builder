@@ -443,6 +443,9 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
     todo = [u for u in dict.fromkeys(candidates) if u.rstrip("/") not in seen]
     out_of_time = False
     while todo and len(pages) < max_pages and not out_of_time:
+        if time.monotonic() >= deadline:
+            out_of_time = True
+            break
         wave, todo = todo[:max_pages - len(pages)], todo[max_pages - len(pages):]
         pool = ThreadPoolExecutor(CRAWL_WORKERS)
         futures = {url: pool.submit(read_one, url) for url in wave}
