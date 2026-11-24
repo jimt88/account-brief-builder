@@ -7,6 +7,10 @@ from datetime import datetime, timezone
 from brief.build import STATUSES
 from brief.signals import SIGNAL_LABELS
 
+# Readable names for Page.source_type (old signals without one came from the website).
+SOURCE_GROUPS = {"job": "Jobs", "news": "News", "github": "GitHub", "website": "Website",
+                 "extra_link": "Extra links"}
+
 # Aggregation pipeline: ranked by score, newest first on ties, only the columns we show.
 PIPELINE = [
     {"$sort": {"score": -1, "updated_at": -1}},
@@ -52,6 +56,18 @@ DASHBOARD_PIPELINE = [
             {"$group": {"_id": "$signals.type", "count": {"$sum": 1}}},
             {"$sort": {"count": -1, "_id": 1}},
         ],
+        "by_source": [
+            {"$unwind": "$signals"},
+            {"$group": {"_id": {"$ifNull": ["$signals.source_type", "website"]}, "count": {"$sum": 1}}},
+            {"$sort": {"count": -1, "_id": 1}},
+        ],
+        "technologies": [
+            {"$unwind": "$signals"},
+            {"$match": {"signals.technology": {"$nin": [None, ""]}}},
+            {"$group": {"_id": "$signals.technology", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1, "_id": 1}},
+            {"$limit": 10},
+        ],
         "totals": [
             {"$group": {"_id": None, "accounts": {"$sum": 1}, "avg_score": {"$avg": "$score"},
                         "score_50_plus": {"$sum": {"$cond": [{"$gte": ["$score", 50]}, 1, 0]}}}},
@@ -72,6 +88,9 @@ def dashboard_numbers(result: dict) -> dict:
                         for r in result.get("by_industry", [])],
         "signal_types": [{"signal": labels.get(r["_id"], str(r["_id"])), "count": r["count"]}
                          for r in result.get("signal_types", [])],
+        "by_source": [{"source": SOURCE_GROUPS.get(r["_id"] or "website", str(r["_id"])), "count": r["count"]}
+                      for r in result.get("by_source", [])],
+        "technologies": [{"technology": r["_id"], "count": r["count"]} for r in result.get("technologies", [])],
         "totals": {"accounts": totals.get("accounts", 0),
                    "avg_score": round(totals.get("avg_score") or 0),
                    "score_50_plus": totals.get("score_50_plus", 0)},

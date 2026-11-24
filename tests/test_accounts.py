@@ -4,10 +4,10 @@ from brief.accounts import DASHBOARD_PIPELINE, dashboard, dashboard_numbers
 from brief.build import STATUSES
 
 
-def test_dashboard_is_one_facet_with_four_branches():
+def test_dashboard_is_one_facet_with_six_branches():
     assert len(DASHBOARD_PIPELINE) == 1
     facet = DASHBOARD_PIPELINE[0]["$facet"]
-    assert set(facet) == {"by_status", "by_industry", "signal_types", "totals"}
+    assert set(facet) == {"by_status", "by_industry", "signal_types", "by_source", "technologies", "totals"}
     assert facet["signal_types"][0] == {"$unwind": "$signals"}
     assert facet["signal_types"][-1]["$sort"]["count"] == -1
     assert facet["by_industry"][-1]["$sort"]["avg_score"] == -1
@@ -49,3 +49,12 @@ def test_empty_collection_gives_zeros():
     assert numbers["totals"] == {"accounts": 0, "avg_score": 0, "score_50_plus": 0}
     assert all(r["count"] == 0 for r in numbers["by_status"])
     assert numbers["by_industry"] == [] and numbers["signal_types"] == []
+
+
+def test_source_and_technology_facets_are_readable():
+    numbers = dashboard_numbers({"by_source": [{"_id": "job", "count": 3}, {"_id": None, "count": 2}],
+                                 "technologies": [{"_id": "Oracle", "count": 2}]})
+    assert numbers["by_source"] == [{"source": "Jobs", "count": 3}, {"source": "Website", "count": 2}]
+    assert numbers["technologies"] == [{"technology": "Oracle", "count": 2}]
+    tech = DASHBOARD_PIPELINE[0]["$facet"]["technologies"]
+    assert {"$match": {"signals.technology": {"$nin": [None, ""]}}} in tech

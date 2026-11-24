@@ -159,7 +159,7 @@ def build_brief(
             "company's newsroom or investor site, or paste a press release in Extra links."
         )
 
-    score, breakdown = score_account(profile)
+    score, breakdown = score_account(profile, jobs)
 
     progress("3/5 Finding the closest MongoDB customer story ...")
     story = match_story(db[COLLECTION_NAME], profile, mode=match_mode)
@@ -172,9 +172,14 @@ def build_brief(
 
     progress("5/5 Saving the account ...")
     pages_read = [p.url for p in pages + github_pages]
+    sources = {
+        "jobs": len(job_pages), "news": len(news_pages), "github": github.get("files_read", 0),
+        "pages_read": len(pages_read), "chunks_indexed": len(chunks),
+        "passages_used": sum(len(p["chunks"]) for p in passages),
+    }
     account = save_account(db[ACCOUNTS_COLLECTION], website, profile, score, breakdown,
                            story, brief, warnings, pages_read, jobs=jobs, news=news,
-                           github=github, passages=passage_summary)
+                           github=github, passages=passage_summary, sources=sources)
     return BriefResult(
         profile=profile,
         story=story,

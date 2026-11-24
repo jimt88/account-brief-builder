@@ -32,8 +32,16 @@ VALIDATOR = {
             "company": {"bsonType": "string", "minLength": 1},
             "score": {"bsonType": "int", "minimum": 0, "maximum": 100},
             "status": {"enum": STATUSES},
-            "signals": {"bsonType": "array"},
+            "signals": {"bsonType": "array", "items": {"bsonType": "object", "properties": {
+                "source_type": {"bsonType": "string"}, "published_at": {"bsonType": "string"},
+                "technology": {"bsonType": "string"}}}},
             "history": {"bsonType": "array"},
+            # Optional (score v2); older accounts without them stay valid.
+            "score_version": {"bsonType": "int", "minimum": 1},
+            "sources_summary": {"bsonType": ["object", "null"]},
+            "score_breakdown": {"bsonType": "array", "items": {
+                "bsonType": "object", "required": ["reason", "points"],
+                "properties": {"points": {"bsonType": "int"}, "maths": {"bsonType": "string"}}}},
             "updated_at": {"bsonType": "date"},
         },
     }
