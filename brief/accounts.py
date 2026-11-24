@@ -68,6 +68,12 @@ DASHBOARD_PIPELINE = [
             {"$sort": {"count": -1, "_id": 1}},
             {"$limit": 10},
         ],
+        "top_accounts": [
+            {"$sort": {"score": -1, "updated_at": -1}},
+            {"$limit": 5},
+            {"$project": {"_id": 0, "company": 1, "domain": 1, "score": 1,
+                          "top_signal": {"$ifNull": [{"$first": "$score_breakdown.reason"}, "-"]}}},
+        ],
         "totals": [
             {"$group": {"_id": None, "accounts": {"$sum": 1}, "avg_score": {"$avg": "$score"},
                         "score_50_plus": {"$sum": {"$cond": [{"$gte": ["$score", 50]}, 1, 0]}}}},
@@ -91,6 +97,7 @@ def dashboard_numbers(result: dict) -> dict:
         "by_source": [{"source": SOURCE_GROUPS.get(r["_id"] or "website", str(r["_id"])), "count": r["count"]}
                       for r in result.get("by_source", [])],
         "technologies": [{"technology": r["_id"], "count": r["count"]} for r in result.get("technologies", [])],
+        "top_accounts": result.get("top_accounts", []),
         "totals": {"accounts": totals.get("accounts", 0),
                    "avg_score": round(totals.get("avg_score") or 0),
                    "score_50_plus": totals.get("score_50_plus", 0)},
