@@ -208,7 +208,8 @@ def merge_overlap(first: str, second: str) -> str:
 def pick_passages(chunks: list[dict], vector: list[tuple[str, int]], k: int = PASSAGES,
                   max_chars: int = MAX_EVIDENCE_CHARS) -> list[dict]:
     """Pure selection step: fuse the vector and keyword rankings, keep the home page's
-    first chunk, guarantee SOURCE_MINIMUMS job/news chunks, fill to k (with unranked
+    first chunk, guarantee SOURCE_MINIMUMS job/news chunks and the best chunk of every
+    pasted extra link, fill to k (with unranked
     chunks if the rankings run out), stop at max_chars,
     then join neighbouring chunks of the same page into one passage."""
     by_key = {key(c): c for c in chunks}
@@ -225,6 +226,10 @@ def pick_passages(chunks: list[dict], vector: list[tuple[str, int]], k: int = PA
         pool += [key(c) for c in chunks if c["source_type"] == source and key(c) not in scores]
         have = sum(1 for x in chosen if by_key[x]["source_type"] == source)
         chosen += [x for x in pool if x not in chosen][:max(0, minimum - have)]
+    for url in dict.fromkeys(c["url"] for c in chunks if c["source_type"] == "extra_link"):
+        best = [x for x in ranked if x[0] == url] or [key(c) for c in chunks if c["url"] == url]
+        if best[0] not in chosen:
+            chosen.append(best[0])  # The user pasted this link: Gemini sees its best chunk.
     chosen += [x for x in ranked if x not in chosen]
     chosen += [key(c) for c in chunks if key(c) not in chosen]  # Small site: fill up with the rest.
     chosen = chosen[:k]

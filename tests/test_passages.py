@@ -156,3 +156,12 @@ def test_unranked_chunks_fill_up_to_k_on_small_sites():
     picked = pick_passages(chunks, [("https://a.com/p4", 0)], k=15)
     assert len(picked) == 6 and picked[1]["url"] == "https://a.com/p4"
     assert {p["origin"] for p in picked[2:]} == {"added"}
+
+
+def test_every_pasted_link_gets_its_best_chunk():
+    chunks = ([chunk("https://a.com", 0)] + [chunk(f"https://a.com/p{i}", 0) for i in range(20)]
+              + [chunk("https://press.test/x", i, "extra_link") for i in range(3)])
+    vector = [(f"https://a.com/p{i}", 0) for i in range(20)] + [("https://press.test/x", 2)]
+    picked = pick_passages(chunks, vector, k=5)
+    extra = [p for p in picked if p["source_type"] == "extra_link"]
+    assert len(extra) == 1 and extra[0]["chunks"] == [2]
