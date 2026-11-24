@@ -407,7 +407,7 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
         if first is None:
             raise ValueError(f"Could not open {home} (it may be down, blocked or not public).")
         home_url, home_soup = first
-        candidates = (sitemap_links(home_url, robots(home), deadline)
+        candidates = (sitemap_links(home_url, robots(home_url), deadline)
                       or pick_target_links(pick_links(home_soup, home_url, home_url)))  # Before stripping menus.
         pages = []
         if not looks_like_login(home_soup):
