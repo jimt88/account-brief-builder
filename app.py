@@ -34,7 +34,7 @@ from brief.pipeline import BriefError, build_brief
 from brief.signals import SIGNAL_LABELS, SignalType
 from brief.story_search import DB_NAME
 
-st.set_page_config(page_title="Account Brief Builder", page_icon="🍃", layout="centered")
+st.set_page_config(page_title="Account Brief Builder", page_icon="🍃", layout="wide")
 
 PAGES = ["New account", "Pipeline", "Dashboard", "Brief", "How it works"]
 PAGE_ICONS = {"New account": ":material/add_circle:", "Pipeline": ":material/leaderboard:",
@@ -56,16 +56,44 @@ CSS = """
                          text-transform: uppercase; color: #00684A; margin-bottom: 4px;}
 .abb-callout .abb-text {font-size: 1.1rem; font-weight: 500;}
 .abb-quote {border-left: 3px solid #00ED64; padding-left: 12px; color: #3D4F58; font-style: italic;}
-.abb-flow {display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
-            counter-reset: step;}
-.abb-step {border: 1px solid #C1CCC6; border-radius: 10px; padding: 10px 12px; background: #FFFFFF;
-           counter-increment: step; font-size: 0.85rem; color: #3D4F58;}
-.abb-step b {display: block; color: #001E2B; font-size: 0.9rem; margin-bottom: 2px;}
-.abb-step b::before {content: counter(step) ". "; color: #00684A;}
-.abb-step span {display: block;}
-.abb-atlas {background: #E3FCF7; border-color: #00A35C;}
-.abb-legend {font-size: 0.8rem; color: #5C6C75; margin-top: 6px; display: flex; align-items: center; gap: 6px;}
-.abb-dot {width: 12px; height: 12px; border-radius: 3px; background: #E3FCF7; border: 1px solid #00A35C;}
+/* Wide layout, but not edge to edge on big screens. */
+[data-testid="stMainBlockContainer"] {max-width: 1180px;}
+.abb-grid {display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px;}
+.abb-card {border: 1px solid #E1E7E5; border-radius: 12px; padding: 14px 16px; background: #FFFFFF;}
+.abb-card h4 {margin: 0 0 10px; font-size: 0.95rem; font-weight: 600; color: #001E2B;}
+.abb-row {margin-bottom: 9px; font-size: 0.85rem; color: #3D4F58;}
+.abb-row-top {display: flex; justify-content: space-between; gap: 8px;}
+.abb-row-top b {color: #001E2B; font-weight: 600; white-space: nowrap;}
+.abb-bar {height: 6px; border-radius: 3px; background: #E8EDEB; margin-top: 3px; overflow: hidden;}
+.abb-bar i {display: block; height: 100%; background: #00A35C; border-radius: 3px;}
+.abb-funnel {display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;}
+.abb-stage {border: 1px solid #E1E7E5; border-radius: 12px; padding: 10px 12px; background: #F5F7F6;}
+.abb-stage b {display: block; font-size: 1.6rem; font-weight: 600; color: #001E2B; line-height: 1.2;}
+.abb-stage span {font-size: 0.8rem; color: #5C6C75;}
+.abb-stage.abb-win {background: #E3FCF7; border-color: #00A35C;}
+.abb-steps {display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px;}
+.abb-tile {border-radius: 12px; padding: 14px; background: #F5F7F6; border: 1px solid #E1E7E5;}
+.abb-tile .abb-num {width: 28px; height: 28px; border-radius: 50%; background: #00684A; color: #FFFFFF;
+                    display: flex; align-items: center; justify-content: center; font-weight: 600;
+                    font-size: 0.85rem; margin-bottom: 8px;}
+.abb-tile b {display: block; color: #001E2B; margin-bottom: 2px;}
+.abb-tile span {font-size: 0.85rem; color: #3D4F58;}
+.abb-feature {border: 1px solid #E1E7E5; border-left: 4px solid #00A35C; border-radius: 10px;
+              padding: 12px 14px; background: #FFFFFF; font-size: 0.85rem; color: #3D4F58;}
+.abb-feature b {display: block; color: #001E2B; font-size: 0.95rem; margin-bottom: 4px;}
+.abb-lanes {display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 0; padding: 12px;
+             border-radius: 14px; background: linear-gradient(to right, #F5F7F6 50%, #E3FCF7 50%);}
+.abb-lane-head {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+                color: #3D4F58; padding: 2px 4px 10px;}
+.abb-lane-atlas {color: #00684A;}
+.abb-box {border: 1px solid #C1CCC6; border-radius: 10px; padding: 8px 12px; background: #FFFFFF;
+          font-size: 0.82rem; color: #3D4F58;}
+.abb-box b {display: block; color: #001E2B; font-size: 0.9rem;}
+.abb-box-atlas {border-color: #00A35C;}
+.abb-arrow {text-align: center; color: #00684A; font-size: 1.3rem; font-weight: 600; line-height: 1.6rem;}
+.abb-tag {display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
+           text-transform: uppercase; color: #00684A; margin-bottom: 4px;}
+.abb-feature em {font-style: normal; color: #00684A; font-weight: 600;}
 .abb-kicker {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
              color: #00684A; margin: 8px 0 2px;}
 </style>
@@ -91,7 +119,7 @@ def passcode_ok() -> bool:
         return False
     if st.session_state.get("unlocked"):
         return True
-    with st.form("passcode"):
+    with st.columns([1, 2, 1])[1], st.form("passcode"):
         st.markdown("**:material/lock: This demo is passcode protected**")
         entered = st.text_input("Passcode", type="password")
         submitted = st.form_submit_button("Unlock", type="primary", width="stretch", icon=":material/lock_open:")
@@ -350,38 +378,72 @@ def show_brief(a: dict) -> None:
 
 # ---- Pages ------------------------------------------------------------------
 
+EXAMPLES = [("Monzo", "monzo.com"), ("DSV", "dsv.com"), ("Ocado Group", "ocadogroup.com")]
+
+
+def use_example(company: str, website: str) -> None:
+    """Button callback: fill the form; nothing runs until Build brief is pressed."""
+    st.session_state.new_company = company
+    st.session_state.new_website = website
+
+
+def recent_accounts() -> None:
+    try:
+        rows = sorted(pipeline_rows(accounts()), key=lambda r: r.get("updated_at") or 0, reverse=True)[:5]
+    except Exception:
+        return  # The form still works; the list is a nice-to-have.
+    if not rows:
+        return
+    st.html('<div class="abb-kicker">Recent accounts</div>')
+    names = account_labels(rows)
+    for r in rows:
+        st.button(f"{names[r['domain']]} · {r['score']}/100", key=f"recent_{r['domain']}",
+                  on_click=open_brief, args=(r["domain"],), width="stretch", icon=":material/description:")
+
+
 def page_new_account() -> None:
-    st.subheader("Research a new account", anchor=False)
-    # A horizontal container keeps the three cards in one row on phones too.
-    steps = st.container(horizontal=True, wrap=False)
-    for icon, title, text in [
-        (":material/travel_explore:", "Read", "Website, job ads, news and GitHub"),
-        (":material/fact_check:", "Verify", "Signals with exact quotes"),
-        (":material/hub:", "Match", "Closest MongoDB story"),
-    ]:
-        with steps.container(border=True):
-            st.markdown(f"**{icon} {title}**")
-            st.caption(text)
-    with st.form("company"):
-        name_col, site_col = st.columns(2)
-        company = name_col.text_input("Company name", placeholder="Ocado Group")
-        website = site_col.text_input("Website", placeholder="ocadogroup.com")
-        extra = st.text_area(
-            "Extra links (optional, up to 3, one per line)",
-            placeholder="https://www.ocadogroup.com/newsroom",
-            help="Public pages worth reading too, e.g. a press release, careers page or news "
-            "article. Useful when the main site is thin or needs JavaScript. No LinkedIn or paywalls.",
-        )
-        go = st.form_submit_button("Build brief", type="primary", width="stretch", icon=":material/bolt:")
+    form_col, side_col = st.columns([3, 2], gap="large")
+    with form_col:
+        st.subheader("Research a new account", anchor=False)
+        st.caption("Type a company and its website. The app reads its public website, job ads, news and "
+                   "GitHub, keeps only quotes it can verify, and writes a call-ready brief.")
+        with st.container(horizontal=True, wrap=True, vertical_alignment="center"):
+            st.markdown("**Try an example:**", width="content")
+            for company, website in EXAMPLES:
+                st.button(company, key=f"example_{website}", on_click=use_example,
+                          args=(company, website), type="tertiary", icon=":material/bolt:")
+        with st.form("company", border=True):
+            name_col, site_col = st.columns(2)
+            company = name_col.text_input("Company name", placeholder="Ocado Group", key="new_company")
+            website = site_col.text_input("Website", placeholder="ocadogroup.com", key="new_website")
+            with st.expander("Extra links (optional)"):
+                extra = st.text_area(
+                    "Up to 3 public pages, one per line",
+                    placeholder="https://www.ocadogroup.com/newsroom",
+                    help="E.g. a press release, careers page or news article. Useful when the main "
+                    "site is thin or needs JavaScript. No LinkedIn or paywalls.",
+                )
+            go = st.form_submit_button("Build brief", type="primary", width="stretch", icon=":material/bolt:")
+    with side_col:
+        st.html('<div class="abb-kicker">What happens</div>')
+        for icon, title, text in [
+            (":material/travel_explore:", "Read", "Website (up to 30 pages), job ads, news and GitHub"),
+            (":material/fact_check:", "Verify", "Keeps only signals with an exact quote"),
+            (":material/speed:", "Score", "0-100 from signal, source and age"),
+            (":material/hub:", "Match and write", "Closest MongoDB story, then the brief"),
+        ]:
+            st.markdown(f"{icon} **{title}** · {text}")
+        recent_accounts()
     if not go:
         return
     if not company.strip() or not website.strip():
         st.error("Please fill in both the company name and the website.")
         return
-    with st.status("Building the brief ...", expanded=True) as status:
+    with st.status("Building the brief (1-2 minutes) ...", expanded=True) as status:
         try:
             result = build_brief(company.strip(), website.strip(), get_db(), get_gemini(),
-                                 progress=st.write, extra_urls=extra.split())
+                                 progress=lambda message: st.markdown(f":green[:material/check:] {md(message)}"),
+                                 extra_urls=extra.split())
             status.update(label=f"Brief ready: score {result.score}/100", state="complete", expanded=False)
         except BriefError as exc:
             status.update(label="Couldn't build the brief", state="error")
@@ -395,32 +457,47 @@ def page_new_account() -> None:
               on_click=open_brief, args=(result.account["domain"],))
 
 
+def bar_card(title: str, rows: list[tuple[str, str, float]]) -> str:
+    """A ranked list with a thin bar per row: (label, value text, bar share 0-1)."""
+    body = "".join(
+        f'<div class="abb-row"><div class="abb-row-top"><span>{html.escape(name)}</span>'
+        f'<b>{html.escape(value)}</b></div><div class="abb-bar"><i style="width:{share * 100:.0f}%"></i>'
+        f"</div></div>" for name, value, share in rows) or '<div class="abb-row">Nothing yet.</div>'
+    return f'<div class="abb-card"><h4>{html.escape(title)}</h4>{body}</div>'
+
+
+def counted(rows: list[dict], name: str) -> list[tuple[str, str, float]]:
+    top = max((r["count"] for r in rows), default=1) or 1
+    return [(str(r[name]), str(r["count"]), r["count"] / top) for r in rows]
+
+
 def show_dashboard(numbers: dict) -> None:
-    """Metric tiles and bar charts, all from one $facet result."""
+    """Number tiles, a status funnel and ranked lists, all from one $facet result."""
     totals = numbers["totals"]
-    with st.container(horizontal=True, wrap=False):
+    statuses = {r["status"]: r["count"] for r in numbers["by_status"]}
+    with st.container(horizontal=True, wrap=True):
         st.metric("Accounts", totals["accounts"], border=True)
-        st.metric("Avg score", totals["avg_score"], border=True)
-        st.metric("Score 50+", totals["score_50_plus"], border=True)
-    charts = [
-        ("By status", pd.DataFrame(numbers["by_status"]), "status", "count"),
-        ("Avg score by industry", pd.DataFrame(numbers["by_industry"]), "industry", "avg_score"),
-        ("Signals found", pd.DataFrame(numbers["signal_types"]), "signal", "count"),
-        ("Signals by source", pd.DataFrame(numbers["by_source"]), "source", "count"),
-        ("Technologies seen", pd.DataFrame(numbers["technologies"]), "technology", "count"),
-    ]
-    for (title, frame, x, y), column in zip(charts, st.columns(2) + st.columns(2) + st.columns(2)):
-        with column:
-            st.markdown(f"**{title}**")
-            if frame.empty:
-                st.caption("Nothing yet.")
-            else:
-                # Horizontal bars keep long labels readable on a phone.
-                st.bar_chart(frame, x=x, y=y, horizontal=True, sort=False, height=240,
-                             x_label="", y_label="", color="#00684A")
-    st.caption("Every number and chart on this page comes from one MongoDB query: a `$facet` "
-               "aggregation that runs all the groupings in a single trip to the database.")
-    with st.expander("See the MongoDB query behind these charts"):
+        st.metric("Avg score", f"{totals['avg_score']}/100", border=True)
+        st.metric("Score 50+", totals["score_50_plus"], border=True, help="Accounts worth calling first.")
+        st.metric("Meetings set", statuses.get("Meeting set", 0), border=True)
+
+    st.html('<div class="abb-kicker">Pipeline by status</div>')
+    st.html(CSS + '<div class="abb-funnel">' + "".join(
+        f'<div class="abb-stage{" abb-win" if status == "Meeting set" else ""}"><b>{count}</b>'
+        f"<span>{html.escape(status)}</span></div>" for status, count in statuses.items()) + "</div>")
+
+    industries = [(r["industry"], f"{r['avg_score']} avg · {r['count']} acct{'s' if r['count'] != 1 else ''}",
+                   r["avg_score"] / 100) for r in numbers["by_industry"]]
+    st.html('<div class="abb-kicker">What the research found</div>')
+    st.html(CSS + '<div class="abb-grid">'
+            + bar_card("Avg score by industry", industries)
+            + bar_card("Signals found", counted(numbers["signal_types"], "signal"))
+            + bar_card("Where the evidence came from", counted(numbers["by_source"], "source"))
+            + bar_card("Technologies seen", counted(numbers["technologies"], "technology"))
+            + "</div>")
+    st.caption("Every number on this page comes from one MongoDB query: a `$facet` aggregation "
+               "that runs all the groupings in a single trip to the database.")
+    with st.expander("See the MongoDB query behind this page"):
         st.code(json.dumps(DASHBOARD_PIPELINE, indent=2), language="json")
 
 
@@ -501,26 +578,52 @@ def page_brief() -> None:
     show_brief(account)
 
 
-# (title, detail, runs in Atlas?) for the architecture strip on How it works.
+IN_30_SECONDS = [
+    ("Read", "Public website pages, job ads, news and GitHub for one company."),
+    ("Verify", "Gemini lists buying signals; any quote not word for word on its page is dropped."),
+    ("Score", "0-100 from what each signal is, where it came from and how old it is."),
+    ("Write", "The closest MongoDB customer story, then a call opener, email and questions."),
+]
+
+
+def in_30_seconds_html() -> str:
+    tiles = "".join(f'<div class="abb-tile"><div class="abb-num">{n}</div><b>{html.escape(title)}</b>'
+                    f"<span>{html.escape(text)}</span></div>"
+                    for n, (title, text) in enumerate(IN_30_SECONDS, start=1))
+    return CSS + f'<div class="abb-steps">{tiles}</div>'
+
+
+# (lane, title, detail) in run order for the architecture diagram on How it works.
 ARCHITECTURE = [
-    ("Public sources", "Website (30 pages), job ads, news, GitHub", False),
-    ("page_cache + page_chunks", "24-hour TTL cache; pages cut into chunks", True),
-    ("$vectorSearch", "Voyage AI picks the 15 best passages", True),
-    ("Gemini", "Signals with quotes; unverifiable quotes dropped", False),
-    ("Score v2", "Points × source × age, 0-100", False),
-    ("stories: $rankFusion", "Vector Search + Atlas Search, same industry", True),
-    ("Gemini", "Writes the brief from verified evidence", False),
-    ("accounts", "Upsert with history; Pipeline and $facet Dashboard", True),
+    ("app", "Read", "Crawler reads the website (up to 30 pages, robots.txt respected), job boards, "
+     "GDELT news and GitHub"),
+    ("atlas", "Cache and chunk", "page_cache keeps pages 24 h (TTL index); page_chunks stores passages, "
+     "embedded by Voyage AI"),
+    ("atlas", "Pick passages", "$vectorSearch returns the 15 passages most like buying signals"),
+    ("app", "Find and verify", "Gemini lists signals with quotes; any quote not on its page is dropped"),
+    ("app", "Score", "Score v2: points × source × age, 0-100"),
+    ("atlas", "Match a story", "stories: $rankFusion of Vector Search and Atlas Search, same industry"),
+    ("app", "Write", "Gemini writes the brief from verified evidence only"),
+    ("atlas", "Save", "accounts: one atomic upsert keeps the brief and its last 5 versions"),
+    ("atlas", "Rank and count", "Aggregation ranks the Pipeline; $facet fills the Dashboard"),
+    ("app", "Show", "Pipeline, Dashboard and Brief pages"),
 ]
 
 
 def architecture_html() -> str:
-    boxes = "".join(
-        f'<div class="abb-step{" abb-atlas" if atlas else ""}"><b>{html.escape(title)}</b>'
-        f"<span>{html.escape(detail)}</span></div>"
-        for title, detail, atlas in ARCHITECTURE)
-    return (CSS + f'<div class="abb-flow">{boxes}</div>'
-            '<div class="abb-legend"><span class="abb-dot"></span>Runs in MongoDB Atlas</div>')
+    """Two swimlanes (app | Atlas) with numbered steps and arrows between them."""
+    cells = ['<div class="abb-lane-head">Streamlit app (Python)</div>',
+             '<div class="abb-lane-head abb-lane-atlas">MongoDB Atlas (free M0)</div>']
+    for n, (lane, title, detail) in enumerate(ARCHITECTURE, start=1):
+        if n > 1:
+            before = ARCHITECTURE[n - 2][0]
+            arrow, column = ("↓", "1" if lane == "app" else "2") if before == lane else \
+                ("↘" if lane == "atlas" else "↙", "1 / 3")
+            cells.append(f'<div class="abb-arrow" style="grid-column: {column}">{arrow}</div>')
+        cells.append(f'<div class="abb-box{" abb-box-atlas" if lane == "atlas" else ""}" '
+                     f'style="grid-column: {1 if lane == "app" else 2}"><b>{n}. {html.escape(title)}</b>'
+                     f"<span>{html.escape(detail)}</span></div>")
+    return CSS + f'<div class="abb-lanes">{"".join(cells)}</div>'
 
 
 SCORING_POINTS = """
@@ -555,42 +658,43 @@ SCORING_AGE = """
 """
 
 
-MONGODB_FEATURES = """
-| Feature | What it does here | Why it helps |
-|---|---|---|
-| Atlas (free M0) | Hosts the `adr_brief` database | Fully managed, free |
-| Document model | One document per account: signals, score maths, brief, story and history | One read shows a whole brief; new fields need no migration |
-| Vector Search + Voyage AI | Picks the best passages and the closest customer story by meaning | Atlas creates the embeddings itself, so the app has no embedding code |
-| Atlas Search + `$rankFusion` | Mixes keyword and meaning ranks for the story match | A story strong on both wins |
-| Aggregation pipeline | Ranks the Pipeline page | Sorting and shaping run in the database |
-| `$facet` | Computes every Dashboard tile and chart | One query, one round trip |
-| TTL indexes | Delete cached pages and chunks after 24 hours | Fast re-runs; MongoDB cleans up by itself |
-| Schema validation | Rejects bad data (e.g. a score of 150) | Flexible documents with guardrails |
-| Unique indexes | One document per company and per story | Re-running updates instead of duplicating |
-| Atomic upsert | Saves the new brief and archives the old one in one write | Nothing lost if two people rebuild at once |
-| Least-privilege user | The app can only read and write `adr_brief` | Safe by default |
-"""
+# (group, feature, where it's used, why it helps) for the cards on How it works.
+MONGODB_FEATURES = [
+    ("Search and AI", "Atlas Vector Search", "Picks the 15 best page passages and the closest customer story",
+     "Finds matches by meaning, next to the data"),
+    ("Search and AI", "Automated embedding (Voyage AI)", "Atlas turns stories and passages into vectors",
+     "No embedding code or extra AI service in the app"),
+    ("Search and AI", "Atlas Search + $rankFusion", "Mixes keyword and meaning ranks for the story match",
+     "A story strong on both wins"),
+    ("Data and queries", "Document model", "One document per account: signals, score maths, brief, history",
+     "One read shows a whole brief; new fields need no migration"),
+    ("Data and queries", "Aggregation pipeline", "Ranks the Pipeline page", "Sorting and shaping run in the database"),
+    ("Data and queries", "$facet", "Computes every Dashboard number", "One query, one round trip"),
+    ("Data and queries", "Atomic upsert", "Saves the new brief and archives the old one in one write",
+     "Nothing lost if two people rebuild at once"),
+    ("Running safely", "TTL indexes", "Delete cached pages and chunks after 24 hours",
+     "Fast re-runs; MongoDB cleans up by itself"),
+    ("Running safely", "Schema validation", "Rejects bad data, e.g. a score of 150", "Flexible, with guardrails"),
+    ("Running safely", "Unique indexes", "One document per company and per story",
+     "Re-running updates instead of duplicating"),
+    ("Running safely", "Least-privilege user", "The app can only read and write adr_brief", "Safe by default"),
+    ("Running safely", "Atlas M0", "Hosts the whole adr_brief database", "Fully managed and free"),
+]
+
+
+def features_html() -> str:
+    cards = "".join(
+        f'<div class="abb-feature"><span class="abb-tag">{html.escape(group)}</span>'
+        f"<b>{html.escape(feature)}</b>{html.escape(where)}.<br><em>Why:</em> {html.escape(why)}.</div>"
+        for group, feature, where, why in MONGODB_FEATURES)
+    return CSS + f'<div class="abb-grid">{cards}</div>'
 
 
 def page_how_it_works() -> None:
-    st.markdown("**In 30 seconds:** type a company and its website. The app reads public pages, "
-                "keeps only claims it can quote word for word, scores the account, finds the closest "
-                "MongoDB customer story and writes a call-ready brief. Everything is saved in MongoDB Atlas.")
-
-    st.subheader("The flow", anchor=False)
-    st.markdown("""
-1. **Read.** Up to 30 website pages from the sitemap, plus job ads (public job boards),
-   recent news (GDELT) and GitHub dependency files. Public pages only: robots.txt is
-   respected, and there are no logins, LinkedIn or paywalls.
-2. **Pick passages.** Pages are cut into chunks; one Atlas Vector Search query picks the
-   15 most relevant for Gemini.
-3. **Find signals.** Gemini lists buying signals with a quote each. **Any quote that isn't
-   word for word on the page is dropped.**
-4. **Score and match.** The account gets a score (below), and hybrid search finds the
-   closest of 48 MongoDB customer stories in the same industry.
-5. **Write and save.** Gemini writes the brief from verified evidence only; checks flag
-   any number or vendor not in the evidence. The account is saved and ranked.
-""")
+    st.subheader("In 30 seconds", anchor=False)
+    st.html(in_30_seconds_html())
+    st.caption("Public pages only: robots.txt is respected; no logins, LinkedIn or paywalls. "
+               "Everything is saved in MongoDB Atlas.")
 
     st.subheader("How scoring works", anchor=False)
     st.markdown("Each signal type counts **once**, using its strongest piece of evidence: "
@@ -607,10 +711,11 @@ def page_how_it_works() -> None:
     st.caption("The Evidence tab of every brief shows each line's maths and a link to its source.")
 
     st.subheader("Architecture", anchor=False)
+    st.caption("One brief, step by step. The left lane runs in the app; the green lane runs in MongoDB Atlas.")
     st.html(architecture_html())
 
     st.subheader("MongoDB features used, and why", anchor=False)
-    st.markdown(MONGODB_FEATURES)
+    st.html(features_html())
 
 
 # ---- Main -------------------------------------------------------------------
