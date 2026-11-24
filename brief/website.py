@@ -350,10 +350,10 @@ def score_url(url: str, lastmod: str = "", now: datetime | None = None) -> int:
     return points
 
 
-def sitemap_links(home: str, robots: RobotFileParser, deadline: float) -> list[str]:
-    """Same-site URLs from the sitemaps named in robots.txt and /sitemap.xml (max
-    MAX_SITEMAPS files, sitemap indexes followed), best score first."""
-    queue = list(robots.site_maps() or []) + [urljoin(home, "/sitemap.xml")]
+def sitemap_links(home: str, robots: list[RobotFileParser], deadline: float) -> list[str]:
+    """Same-site URLs from the sitemaps named in the robots.txt files and /sitemap.xml
+    (max MAX_SITEMAPS files, sitemap indexes followed), best score first."""
+    queue = [m for r in robots for m in (r.site_maps() or [])] + [urljoin(home, "/sitemap.xml")]
     seen, entries, files = set(), {}, 0
     while queue and files < MAX_SITEMAPS and time.monotonic() < deadline:
         sitemap = queue.pop(0)
@@ -407,7 +407,9 @@ def read_website(website: str, max_pages: int = MAX_PAGES, notes: list[str] | No
         if first is None:
             raise ValueError(f"Could not open {home} (it may be down, blocked or not public).")
         home_url, home_soup = first
-        candidates = (sitemap_links(home_url, robots(home_url), deadline)
+        # After a redirect (example.com -> www.example.com) both hosts may name sitemaps.
+        declared = [robots(home_url)] + ([robots(home)] if robots(home) is not robots(home_url) else [])
+        candidates = (sitemap_links(home_url, declared, deadline)
                       or pick_target_links(pick_links(home_soup, home_url, home_url)))  # Before stripping menus.
         pages = []
         if not looks_like_login(home_soup):

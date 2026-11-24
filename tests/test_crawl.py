@@ -1,3 +1,4 @@
+import time
 """Phase 9 wider crawl: sitemaps, URL scoring, subdomains, time budget. No network."""
 
 from datetime import datetime, timezone
@@ -121,3 +122,15 @@ def test_oversized_sitemaps_are_refused(monkeypatch):
     monkeypatch.setattr(website.requests, "get", lambda url, **kw: big)
     assert website.public_get(big.url, max_bytes=100) is None
     assert website.public_get(big.url, max_bytes=10_000) is big
+
+
+def test_sitemaps_named_by_both_hosts_after_a_redirect_are_read(monkeypatch):
+    from urllib.robotparser import RobotFileParser
+    from brief import website
+    asked = []
+    monkeypatch.setattr(website, "public_get", lambda url, **kw: asked.append(url))
+    start, final = RobotFileParser(), RobotFileParser()
+    start.parse(["Sitemap: https://example.com/a.xml"])
+    final.parse(["Sitemap: https://www.example.com/b.xml"])
+    website.sitemap_links("https://www.example.com", [final, start], time.monotonic() + 60)
+    assert asked[:2] == ["https://www.example.com/b.xml", "https://example.com/a.xml"]
