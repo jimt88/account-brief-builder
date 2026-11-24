@@ -302,8 +302,8 @@ def cite(text: str, signals: list[dict]) -> str:
         n = int(match.group(1))
         if not 1 <= n <= len(signals):
             return match.group(0)
-        url = signals[n - 1]["source_url"].replace(" ", "%20").replace("(", "%28").replace(")", "%29")
-        return f'[\\[{n}\\]]({url} "Signal {n}: {label(signals[n - 1]["type"])}")'
+        url = signals[n - 1]["source_url"].replace("<", "%3C").replace(">", "%3E")
+        return f'[\\[{n}\\]](<{url}> "Signal {n}: {label(signals[n - 1]["type"])}")'
     return re.sub(r"\[(\d+)\]", link, md(text))
 
 
