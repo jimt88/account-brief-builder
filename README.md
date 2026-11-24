@@ -2,16 +2,30 @@
 
 **Live demo:** [Open the app](https://account-brief-builder-6ew3n54z87pivk6jevk5b8.streamlit.app/) (passcode protected; ask me for access)
 
-Type a company and its website; get a call-ready sales brief in about a minute, where
+Type a company and its website; get a call-ready sales brief in 1–2 minutes, where
 every claim is backed by a word-for-word quote from a public page and a matching MongoDB
-customer story found with **Atlas Vector Search**. Accounts are scored, saved and ranked
+customer story found with **hybrid search** (Atlas Vector Search plus Atlas Search). Accounts are scored, saved and ranked
 in MongoDB, so it works as a small prospecting pipeline for an ADR.
+
+The app has five pages:
+
+| Page | What it's for |
+|---|---|
+| **New account** | Pick one of 4 example cards (or type a company and website) and press **Build brief**. A live step tracker, progress bar and timer show each stage; recently researched accounts sit under the form. |
+| **Pipeline** | Every account ranked by score, with a # rank, top signal and a status you can change. Click a company to open its brief; export a Salesforce-style CSV. |
+| **Dashboard** | Number tiles, a status funnel, the top accounts to call and ranked lists (industries, signals, sources, technologies), all from one `$facet` aggregation. |
+| **Brief** | Searchable A–Z account picker. Score, verified signals and matched story with its similarity, then the outreach (value hook, opener, email, questions). Every `[n]` reference links to its source page. |
+| **How it works** | The 4 steps, how scoring works, the architecture and the MongoDB features used, and why. |
 
 It's built on MongoDB Atlas because the operational data and the vectors live in one
 database, and so does full-text search (Atlas Search), so there is no separate vector
 store or search engine to keep in sync.
 
-![Brief page](docs/img/brief.png)
+| New account | Brief |
+|---|---|
+| ![New account page](docs/img/new-account.png) | ![Brief page](docs/img/brief.png) |
+| **Pipeline** | **Dashboard** |
+| ![Pipeline page](docs/img/pipeline.png) | ![Dashboard page](docs/img/dashboard.png) |
 
 ## Architecture
 
@@ -37,7 +51,7 @@ flowchart LR
     RF --> G2[Gemini: brief from<br/>verified evidence only]
     G2 --> C[Checks: numbers,<br/>vendors, lengths]
     C --> A[(adr_brief.accounts<br/>upsert + history)]
-    A --> P[Pipeline page<br/>aggregation, status, CSV]
+    A --> P[Pipeline and Dashboard pages<br/>aggregation, $facet, status, CSV]
     A --> D[Dashboard<br/>one $facet aggregation]
 ```
 
@@ -55,7 +69,7 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
 | **Atlas Vector Search + automated embedding (Voyage AI)** | `story_autoembed_index`: an `autoEmbed` field on `stories.search_text` (model `voyage-4`) with `industry_group` as a filter field | Atlas creates and updates the story embeddings itself, and embeds the query text at search time (`"query": {"text": ...}`), so the app has no embedding code, no vectors to store and no second AI provider. Finds the most similar customer story by meaning, pre-filtered to the same industry, in the same database as the operational data |
 | **Aggregation pipeline** | Pipeline page (`$sort` by score, `$project` top signal and its quote with `$filter` + `$first`) and `$vectorSearch` | Ranking and shaping happen on the server |
 | **Schema validation** (`$jsonSchema`) | `stories`, `accounts` | Flexible documents, but bad data is rejected (e.g. score 150, unknown status, a story without `search_text`) |
-| **`$facet` aggregation** | Pipeline dashboard (`DASHBOARD_PIPELINE` in `brief/accounts.py`) | One aggregation computes accounts by status, count and average score by industry (`$group`, `$avg`, `$round`), signal counts (`$unwind`) and totals, in a single round trip. The page has a "Show the aggregation" button that displays it |
+| **`$facet` aggregation** | Dashboard page (`DASHBOARD_PIPELINE` in `brief/accounts.py`) | One aggregation computes the totals, accounts by status, count and average score by industry (`$group`, `$avg`, `$round`), signal, source and technology counts (`$unwind`) and the top 5 accounts, in a single round trip. "See the MongoDB query behind this page" displays it |
 | **TTL index** | `page_cache.fetched_at` (`expireAfterSeconds: 86400`), plus a unique `url` index and `$jsonSchema` | Pages read in the last 24 hours come from MongoDB instead of the web, so re-running an account is faster and kinder to the company's site. MongoDB deletes old pages itself; the TTL monitor runs about once a minute, so removal is not instant |
 | **Passage selection: chunks + one `$vectorSearch`** | `page_chunks` (`$jsonSchema`, unique `(domain, url, chunk_index)`, TTL 24 h) and `chunk_autoembed_index` (`autoEmbed` on `text`, `voyage-4`; filters `domain`, `source_type`) | A 30-page crawl plus job ads and news is too much for one prompt. Every page is cut into ~1,200-character chunks (150 overlap, paragraph-aware, max 400 per company, inserted 100 at a time). One `$vectorSearch` (`limit` 30, `numCandidates` 600, filtered to the company's domain) with a single buying-intent query ranks them by meaning; a keyword scan (Oracle, mainframe, Kafka, LLM, migration, ...) ranks them by terms; reciprocal rank fusion (1 / (60 + rank)) merges the two. The 15 best, with at least 3 job and 2 news passages when available, go to Gemini. The Brief page shows them under "Passages Atlas picked for Gemini" |
 | **Unique indexes** | `stories.source_url`, `accounts.domain` | Re-running never duplicates; plus a `score` index for the ranked view |
@@ -107,8 +121,6 @@ MongoDB's customer pages.
 | N26 | Germany | 3/3 | 30 (20+10) | HYPE (same industry) | PASS |
 | Allegro | Poland | 4/4 | 45 (25+10+10) | Vestiaire Collective (same industry) | PASS |
 | DSV | Denmark | 3/3 | 25 (15+10) | Bolloré Logistics (same industry) | PASS |
-
-![Pipeline page](docs/img/pipeline.png)
 
 ### Vector-only vs hybrid story match
 
@@ -443,19 +455,30 @@ Add `--json` for the raw result.
 streamlit run app.py
 ```
 
-Enter your `APP_PASSCODE` (the app stays locked if it isn't set). Four pages, all
-phone-friendly:
+Enter your `APP_PASSCODE` (the app stays locked if it isn't set). Five pages, one
+layout that uses the full width on a laptop and stacks on a phone:
 
-- **New account:** company, website and up to 3 extra links. Progress shows each step;
-  the result is saved to `adr_brief.accounts`.
+- **New account:** click one of 4 example cards (Monzo, Mistral AI, DSV, Ocado Group)
+  to fill in the form; the chosen card turns green and nothing runs until **Build
+  brief**. Or type a company, website and up to 3 extra links. While it builds, the
+  "What happens" steps light up one by one with a progress bar and timer. The result is
+  saved to `adr_brief.accounts` and appears under "Recently researched".
 - **Pipeline:** every account ranked by score (an aggregation pipeline in
-  `brief/accounts.py`) with company, score, top signal, status and last update. Change
-  the status (New, Researched, Contacted, Meeting set, Not now) and it's saved to
-  MongoDB. **Export CSV** gives Salesforce-style lead columns: Company, Website, Lead
-  Status, Description.
-- **Brief:** the brief, score breakdown, every signal's quote with its link, the
-  matched story and why, earlier versions, and a Markdown download.
-- **How it works:** the data flow and the MongoDB features used, and why.
+  `brief/accounts.py`) with #, company, score, top signal, status and last update.
+  Click a company name to open its brief. Change the status (New, Researched,
+  Contacted, Meeting set, Not now) and it's saved to MongoDB. **Export CSV** gives
+  Salesforce-style lead columns: Company, Website, Lead Status, Description.
+- **Dashboard:** tiles (accounts, average score, score 50+, meetings set), a status
+  funnel, the top accounts to call and ranked lists of industries, signals, sources and
+  technologies, all from one `$facet` aggregation you can display on the page.
+- **Brief:** a searchable A–Z account picker (type to filter). Cards for score,
+  verified signals by source and matched story with its similarity, the top reason to
+  call, then tabs: Outreach (value hook, why now, who to contact, opener, email,
+  discovery questions), Evidence (score breakdown and each signal's quote with its
+  link), Story and Details (earlier versions). Every `[n]` reference links to signal
+  n's source page. Markdown download.
+- **How it works:** "In 30 seconds" in 4 cards, how scoring works (points × source ×
+  age, with a worked example), the architecture and the MongoDB features used, and why.
 
 ## Deploy free on Streamlit Community Cloud
 
@@ -504,6 +527,6 @@ Skills read before writing database code, and used in this project:
 | `mongodb-search-and-ai` (vector search, automated embedding, hybrid search) | The `story_autoembed_index` definition (`autoEmbed` + `filter`), the text-query `$vectorSearch` with `numCandidates` = 20× `limit`, the M0 3-queries-a-minute limit, and `$rankFusion` hybrid search. |
 | `mongodb-schema-design/references/pattern-document-versioning.md`, `mongodb-query-optimizer/references/update-query-examples.md` (Phase 1) | Account `history` capped at 5 versions with one aggregation-pipeline update (`$concatArrays`, `$slice`). |
 | `mongodb-schema-design/references/fundamental-schema-validation.md`, `mongodb-query-optimizer/references/core-indexing-principles.md` (Phase 2) | `adr_brief.page_cache`: unique `url` index, TTL index on `fetched_at` (24 h) and a `$jsonSchema` validator. |
-| `mongodb-query-optimizer/references/aggregation-optimization.md` (Phase 3) | The Pipeline dashboard's single `$facet` aggregation instead of several queries. |
+| `mongodb-query-optimizer/references/aggregation-optimization.md` (Phase 3) | The Dashboard page's single `$facet` aggregation instead of several queries. |
 | `mongodb-search-and-ai/references/lexical-search-indexing.md`, `lexical-search-querying.md`, `hybrid-search.md` (Phase 4) | `story_text_index` (text fields + `industry_group` token), the `$search` compound query with an `equals` filter, and `$rankFusion` with equal weights. |
 | `mongodb-search-and-ai/references/automated-embedding.md` (Phase 5) | `story_autoembed_index` (`autoEmbed` on `search_text`, `voyage-4`), text-query `$vectorSearch`, the M0 rate limit and the switch-over from the old Gemini-vector index. |
