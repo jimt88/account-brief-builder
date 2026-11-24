@@ -81,16 +81,39 @@ CSS = """
 .abb-feature {border: 1px solid #E1E7E5; border-left: 4px solid #00A35C; border-radius: 10px;
               padding: 12px 14px; background: #FFFFFF; font-size: 0.85rem; color: #3D4F58;}
 .abb-feature b {display: block; color: #001E2B; font-size: 0.95rem; margin-bottom: 4px;}
-.abb-lanes {display: grid; grid-template-columns: 1fr 1fr; column-gap: 14px; row-gap: 0; padding: 12px;
-             border-radius: 14px; background: linear-gradient(to right, #F5F7F6 50%, #E3FCF7 50%);}
-.abb-lane-head {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
-                color: #3D4F58; padding: 2px 4px 10px;}
-.abb-lane-atlas {color: #00684A;}
-.abb-box {border: 1px solid #C1CCC6; border-radius: 10px; padding: 8px 12px; background: #FFFFFF;
-          font-size: 0.82rem; color: #3D4F58;}
-.abb-box b {display: block; color: #001E2B; font-size: 0.9rem;}
-.abb-box-atlas {border-color: #00A35C;}
-.abb-arrow {text-align: center; color: #00684A; font-size: 1.3rem; font-weight: 600; line-height: 1.6rem;}
+.abb-arch {border: 1px solid #E1E7E5; border-radius: 14px; padding: 14px; background: #F9FBFA;}
+.abb-arch small {display: block; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em;
+                 text-transform: uppercase; color: #5C6C75; margin-bottom: 4px;}
+.abb-arch-sources {display: flex; flex-wrap: wrap; align-items: center; gap: 6px;}
+.abb-arch-sources small {width: 100%;}
+.abb-arch-sources span {border: 1px solid #C1CCC6; border-radius: 999px; padding: 3px 12px; background: #FFFFFF;
+                        font-size: 0.8rem; color: #001E2B;}
+.abb-arch-down {color: #00684A; font-size: 1.3rem; font-weight: 600; line-height: 1.8rem; padding-left: 24px;}
+.abb-arch-flow {display: flex; align-items: stretch; gap: 6px;}
+.abb-arch-stage {flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; border: 1px solid #C1CCC6;
+                 border-radius: 12px; background: #FFFFFF; overflow: hidden;}
+.abb-arch-title {display: flex; align-items: center; gap: 8px; padding: 10px 12px 6px; font-weight: 600;
+                 color: #001E2B;}
+.abb-arch-title i {font-style: normal; width: 24px; height: 24px; border-radius: 50%; background: #00684A;
+                   color: #FFFFFF; display: flex; align-items: center; justify-content: center;
+                   font-size: 0.78rem; flex-shrink: 0;}
+.abb-arch-app {padding: 0 12px 10px; font-size: 0.82rem; color: #3D4F58; flex: 1;}
+.abb-arch-atlas {background: #E3FCF7; border-top: 1px solid #00A35C; padding: 8px 12px 10px;}
+.abb-arch-atlas small {color: #00684A;}
+.abb-arch-atlas code {display: block; background: #FFFFFF; border: 1px solid #A6E5D0; border-radius: 6px;
+                      padding: 3px 7px; margin-top: 4px; font-size: 0.74rem; color: #00684A;
+                      white-space: normal;}
+.abb-arch-arrow {align-self: center; color: #00684A; font-size: 1.3rem; font-weight: 600;}
+.abb-arch-legend {display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 0.78rem; color: #5C6C75;}
+.abb-arch-legend i {display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px;
+                    vertical-align: -1px;}
+.abb-key-app {background: #FFFFFF; border: 1px solid #C1CCC6;}
+.abb-key-atlas {background: #E3FCF7; border: 1px solid #00A35C;}
+@media (max-width: 820px) {
+  .abb-arch-flow {flex-direction: column;}
+  .abb-arch-stage {flex: none;}
+  .abb-arch-arrow {transform: rotate(90deg); padding-left: 0; align-self: flex-start; margin-left: 20px;}
+}
 .abb-tag {display: inline-block; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.05em;
            text-transform: uppercase; color: #00684A; margin-bottom: 4px;}
 .abb-feature em {font-style: normal; color: #00684A; font-weight: 600;}
@@ -593,37 +616,37 @@ def in_30_seconds_html() -> str:
     return CSS + f'<div class="abb-steps">{tiles}</div>'
 
 
-# (lane, title, detail) in run order for the architecture diagram on How it works.
+ARCHITECTURE_SOURCES = ["Company website", "Job boards", "GDELT news", "GitHub"]
+# (title, what the app does, what Atlas does) per stage of one brief.
 ARCHITECTURE = [
-    ("app", "Read", "Crawler reads the website (up to 30 pages, robots.txt respected), job boards, "
-     "GDELT news and GitHub"),
-    ("atlas", "Cache and chunk", "page_cache keeps pages 24 h (TTL index); page_chunks stores passages, "
-     "embedded by Voyage AI"),
-    ("atlas", "Pick passages", "$vectorSearch returns the 15 passages most like buying signals"),
-    ("app", "Find and verify", "Gemini lists signals with quotes; any quote not on its page is dropped"),
-    ("app", "Score", "Score v2: points × source × age, 0-100"),
-    ("atlas", "Match a story", "stories: $rankFusion of Vector Search and Atlas Search, same industry"),
-    ("app", "Write", "Gemini writes the brief from verified evidence only"),
-    ("atlas", "Save", "accounts: one atomic upsert keeps the brief and its last 5 versions"),
-    ("atlas", "Rank and count", "Aggregation ranks the Pipeline; $facet fills the Dashboard"),
-    ("app", "Show", "Pipeline, Dashboard and Brief pages"),
+    ("Read", "Crawls up to 30 public pages (robots.txt respected), plus job ads, news and GitHub",
+     ["page_cache · TTL 24 h", "page_chunks · Voyage AI embeddings"]),
+    ("Verify", "Gemini reads the passages Atlas picked and lists buying signals; quotes not on the page are dropped",
+     ["$vectorSearch + keywords → 15 best passages"]),
+    ("Score and match", "Score v2: points × source × age, capped at 100",
+     ["stories · $rankFusion (vector + Atlas Search)"]),
+    ("Write and save", "Gemini writes the opener, email and questions; pages show the results",
+     ["accounts · atomic upsert, last 5 versions", "Aggregation + $facet → Pipeline, Dashboard"]),
 ]
 
 
 def architecture_html() -> str:
-    """Two swimlanes (app | Atlas) with numbered steps and arrows between them."""
-    cells = ['<div class="abb-lane-head">Streamlit app (Python)</div>',
-             '<div class="abb-lane-head abb-lane-atlas">MongoDB Atlas (free M0)</div>']
-    for n, (lane, title, detail) in enumerate(ARCHITECTURE, start=1):
+    """Sources, then one card per stage: the app's work on top, the Atlas work in green below."""
+    sources = "".join(f"<span>{html.escape(name)}</span>" for name in ARCHITECTURE_SOURCES)
+    stages = []
+    for n, (title, app_work, atlas_work) in enumerate(ARCHITECTURE, start=1):
         if n > 1:
-            before = ARCHITECTURE[n - 2][0]
-            arrow, column = ("↓", "1" if lane == "app" else "2") if before == lane else \
-                ("↘" if lane == "atlas" else "↙", "1 / 3")
-            cells.append(f'<div class="abb-arrow" style="grid-column: {column}">{arrow}</div>')
-        cells.append(f'<div class="abb-box{" abb-box-atlas" if lane == "atlas" else ""}" '
-                     f'style="grid-column: {1 if lane == "app" else 2}"><b>{n}. {html.escape(title)}</b>'
-                     f"<span>{html.escape(detail)}</span></div>")
-    return CSS + f'<div class="abb-lanes">{"".join(cells)}</div>'
+            stages.append('<div class="abb-arch-arrow">→</div>')
+        chips = "".join(f"<code>{html.escape(item)}</code>" for item in atlas_work)
+        stages.append(
+            f'<div class="abb-arch-stage"><div class="abb-arch-title"><i>{n}</i>{html.escape(title)}</div>'
+            f'<div class="abb-arch-app"><small>App</small>{html.escape(app_work)}</div>'
+            f'<div class="abb-arch-atlas"><small>MongoDB Atlas</small>{chips}</div></div>')
+    return CSS + (
+        f'<div class="abb-arch"><div class="abb-arch-sources"><small>Public web</small>{sources}</div>'
+        f'<div class="abb-arch-down">↓</div><div class="abb-arch-flow">{"".join(stages)}</div>'
+        '<div class="abb-arch-legend"><span><i class="abb-key-app"></i>Streamlit app (Python) + Gemini</span>'
+        '<span><i class="abb-key-atlas"></i>MongoDB Atlas, free M0</span></div></div>')
 
 
 SCORING_POINTS = """
@@ -711,7 +734,7 @@ def page_how_it_works() -> None:
     st.caption("The Evidence tab of every brief shows each line's maths and a link to its source.")
 
     st.subheader("Architecture", anchor=False)
-    st.caption("One brief, step by step. The left lane runs in the app; the green lane runs in MongoDB Atlas.")
+    st.caption("What happens to one brief, stage by stage. White is the app; green is MongoDB Atlas.")
     st.html(architecture_html())
 
     st.subheader("MongoDB features used, and why", anchor=False)
