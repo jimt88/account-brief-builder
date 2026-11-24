@@ -161,12 +161,15 @@ def verify_signals(signals: list[Signal], pages: list[Page]) -> list[Signal]:
     return verified[:MAX_SIGNALS]
 
 
-def extract_signals(gemini: genai.Client, company: str, pages: list[Page]) -> tuple[CompanyProfile, int]:
-    """Return the company profile with verified signals, and how many were dropped."""
+def extract_signals(gemini: genai.Client, company: str, pages: list[Page],
+                    evidence: str | None = None) -> tuple[CompanyProfile, int]:
+    """Return the company profile with verified signals, and how many were dropped.
+    `evidence` is the text Gemini reads (Atlas-picked passages, brief/passages.py);
+    without it, the pages themselves are sent. Quotes are always checked on the pages."""
     response = call_with_retry(
         gemini.models.generate_content,
         model=TEXT_MODEL,
-        contents=PROMPT.format(company=company, max_signals=MAX_SIGNALS, pages=format_pages(pages)),
+        contents=PROMPT.format(company=company, max_signals=MAX_SIGNALS, pages=evidence or format_pages(pages)),
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             response_schema=CompanyProfile,

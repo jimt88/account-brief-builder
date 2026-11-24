@@ -15,6 +15,13 @@ class FakeResponse:
     def __init__(self, url, status=200, text=""):
         self.url, self.status_code, self.text = url, status, text
 
+    def iter_content(self, size):
+        body = self.text.encode()
+        yield from (body[i:i + size] for i in range(0, len(body), size))
+
+    def close(self):
+        pass
+
 
 def serve(files: dict):
     """A fake requests.get that answers URLs containing a key with that fixture file."""

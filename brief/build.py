@@ -308,7 +308,8 @@ def domain_of(website: str) -> str:
 
 def save_account(accounts, website: str, profile: CompanyProfile, score: int, breakdown: list[dict],
                  story: dict, brief: SalesBrief, warnings: list[str], pages_read: list[str],
-                 jobs: dict | None = None, news: dict | None = None, github: dict | None = None) -> dict:
+                 jobs: dict | None = None, news: dict | None = None, github: dict | None = None,
+                 passages: dict | None = None) -> dict:
     """Upsert one document per company, keyed by domain. On a re-run the previous
     brief and score are appended to history[] (only the last MAX_HISTORY are kept)
     and the status is kept.
@@ -337,6 +338,7 @@ def save_account(accounts, website: str, profile: CompanyProfile, score: int, br
         "jobs": jobs or None,  # jobs_summary from brief/jobs.py, if a job board was found.
         "news": news or None,  # news_summary from brief/news.py.
         "github": github or None,  # github_summary from brief/github.py.
+        "passages": passages or None,  # Passages Atlas picked for Gemini (brief/passages.py).
         "updated_at": now,
     }
     previous_version = {"brief": "$brief", "score": "$score",

@@ -72,6 +72,13 @@ class FakeResponse:
         self.url, self.status_code, self.text = url, status, html
         self.headers = {"Content-Type": content_type}
 
+    def iter_content(self, size):
+        body = self.text.encode()
+        yield from (body[i:i + size] for i in range(0, len(body), size))
+
+    def close(self):
+        pass
+
 
 def fake_site(url, **kwargs):
     """A tiny pretend website: robots.txt blocks /careers, /about is fine, /blog is missing."""
@@ -94,8 +101,8 @@ def test_read_website_respects_robots_and_explains_skipped_pages():
     assert any("/blog" in n for n in notes)
 
 
-def test_at_most_four_pages_and_ten_second_timeout():
-    assert website.MAX_PAGES == 4 and website.TIMEOUT_SECONDS == 10
+def test_at_most_thirty_pages_sixty_second_budget_and_ten_second_timeout():
+    assert website.MAX_PAGES == 30 and website.CRAWL_TIME_BUDGET_S == 60 and website.TIMEOUT_SECONDS == 10
 
 
 def test_login_only_sites_are_refused():
