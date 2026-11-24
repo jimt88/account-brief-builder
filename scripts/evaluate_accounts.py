@@ -59,9 +59,19 @@ def strongest_new_signal(breakdown: list[dict]) -> str:
     return f"{new[0]['reason']} (+{new[0]['points']})" if new else "None: nothing beyond the website"
 
 
+def v1_baseline(before: dict | None) -> tuple:
+    """(signals, score) of the saved v1 version: the account itself, or if it was already
+    rebuilt with v2, its newest v1 history entry (history keeps the score, not the signals)."""
+    if not before:
+        return "-", "-"
+    if before.get("score_version", 1) < 2:
+        return len(before["signals"]), before["score"]
+    old = [h for h in before.get("history") or [] if (h.get("score_version") or 1) < 2]
+    return "-", old[-1]["score"] if old else "-"
+
+
 def compare_row(company: str, before: dict | None, r) -> str:
-    v1_signals = len(before["signals"]) if before else "-"
-    v1_score = before["score"] if before else "-"
+    v1_signals, v1_score = v1_baseline(before)
     c = source_counts(r.profile.signals)
     return (f"| {company} | {v1_signals} → {len(r.profile.signals)} | "
             f"{c['job']}/{c['news']}/{c['github']}/{c['website']} | {v1_score} → {r.score} | "
@@ -108,8 +118,8 @@ def main() -> int:
         except BriefError as exc:
             rows.append((company, "ERROR", str(exc)))
             if compare:
-                table.append(f"| {company} | {len(before['signals']) if before else '-'} → - | - | "
-                             f"{before['score'] if before else '-'} → - | Not rebuilt: {exc} |")
+                v1_signals, v1_score = v1_baseline(before)
+                table.append(f"| {company} | {v1_signals} → - | - | {v1_score} → - | Not rebuilt: {exc} |")
             continue
         found, missing = quotes_on_pages(r.profile.signals)
         total = min(100, sum(line["points"] for line in r.score_breakdown))
