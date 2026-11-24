@@ -46,6 +46,7 @@ CRAWL_TIME_BUDGET_S = 60  # Stop reading the site after this; keep what was read
 CRAWL_WORKERS = 4  # Pages downloaded at the same time.
 MAX_SITEMAPS = 5  # Sitemap files (or sitemap indexes) read per site.
 MAX_SITEMAP_URLS = 5_000
+MAX_SITEMAP_BYTES = 10_000_000  # A sitemap is the site's own file; refuse anything bigger.
 # Words in a sitemap URL's path that suggest useful signals (one point each).
 SITEMAP_KEYWORDS = ["careers", "jobs", "engineering", "tech", "technology", "blog", "news", "press",
                     "media", "investors", "annual-report", "results", "strategy", "digital", "data",
@@ -193,23 +194,24 @@ def private_host(url: str) -> bool:
     return any(not ipaddress.ip_address(a.split("%")[0]).is_global for a in addresses)
 
 
-def public_get(url: str):
+def public_get(url: str, timeout: float = TIMEOUT_SECONDS, max_bytes: int | None = None):
     """requests.get that follows up to MAX_REDIRECTS redirects itself and refuses any
     hop to a non-public address, so a page can't redirect the app to internal services.
+    With max_bytes, the body is streamed and anything larger is refused (None).
     Returns the response (its .url is the final URL), or None."""
     cookies = requests.cookies.RequestsCookieJar()  # Some sites set a cookie on the redirect.
     for _ in range(MAX_REDIRECTS + 1):
         if urlparse(url).scheme.lower() not in ("http", "https") or private_host(url):
             return None
         try:
-            response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS,
-                                    allow_redirects=False, cookies=cookies)
+            response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=timeout,
+                                    allow_redirects=False, cookies=cookies, stream=max_bytes is not None)
         except requests.RequestException:
             return None
         location = getattr(response, "headers", {}).get("Location")
         if response.status_code not in (301, 302, 303, 307, 308) or not location:
             response.url = url
-            return response
+            return response if max_bytes is None else read_capped(response, max_bytes)
         cookies.update(getattr(response, "cookies", None) or {})
         try:
             location = location.encode("latin1").decode("utf8")  # As requests does: headers arrive as latin-1.
@@ -217,6 +219,21 @@ def public_get(url: str):
             pass
         url = urljoin(url, location)
     return None
+
+
+def read_capped(response, max_bytes: int):
+    """Read a streamed response's body, or None (connection closed) if it's over max_bytes."""
+    body = b""
+    try:
+        for part in response.iter_content(64 * 1024):
+            body += part
+            if len(body) > max_bytes:
+                response.close()
+                return None
+    except requests.RequestException:
+        return None
+    response._content = body  # .text and .content now read this body.
+    return response
 
 
 def fetch(url: str) -> tuple[str, BeautifulSoup] | None:
@@ -344,7 +361,8 @@ def sitemap_links(home: str, robots: RobotFileParser, deadline: float) -> list[s
             continue
         seen.add(sitemap)
         files += 1
-        response = public_get(sitemap)
+        response = public_get(sitemap, max_bytes=MAX_SITEMAP_BYTES,
+                              timeout=min(TIMEOUT_SECONDS, max(1.0, deadline - time.monotonic())))
         if response is None or response.status_code != 200:
             continue
         pages, children = parse_sitemap(response.text)
