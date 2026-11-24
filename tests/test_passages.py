@@ -149,3 +149,10 @@ def test_chunks_match_the_page_chunks_validator():
         assert set(schema["required"]) <= set(c) and set(c) <= set(schema["properties"])
         assert c["source_type"] in schema["properties"]["source_type"]["enum"]
         assert 0 < len(c["text"]) <= schema["properties"]["text"]["maxLength"]
+
+
+def test_unranked_chunks_fill_up_to_k_on_small_sites():
+    chunks = [chunk("https://a.com", 0)] + [chunk(f"https://a.com/p{i}", 0) for i in range(5)]
+    picked = pick_passages(chunks, [("https://a.com/p4", 0)], k=15)
+    assert len(picked) == 6 and picked[1]["url"] == "https://a.com/p4"
+    assert {p["origin"] for p in picked[2:]} == {"added"}

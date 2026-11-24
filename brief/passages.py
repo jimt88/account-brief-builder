@@ -208,7 +208,8 @@ def merge_overlap(first: str, second: str) -> str:
 def pick_passages(chunks: list[dict], vector: list[tuple[str, int]], k: int = PASSAGES,
                   max_chars: int = MAX_EVIDENCE_CHARS) -> list[dict]:
     """Pure selection step: fuse the vector and keyword rankings, keep the home page's
-    first chunk, guarantee SOURCE_MINIMUMS job/news chunks, fill to k, stop at max_chars,
+    first chunk, guarantee SOURCE_MINIMUMS job/news chunks, fill to k (with unranked
+    chunks if the rankings run out), stop at max_chars,
     then join neighbouring chunks of the same page into one passage."""
     by_key = {key(c): c for c in chunks}
     vector = [v for v in vector if v in by_key]
@@ -225,6 +226,7 @@ def pick_passages(chunks: list[dict], vector: list[tuple[str, int]], k: int = PA
         have = sum(1 for x in chosen if by_key[x]["source_type"] == source)
         chosen += [x for x in pool if x not in chosen][:max(0, minimum - have)]
     chosen += [x for x in ranked if x not in chosen]
+    chosen += [key(c) for c in chunks if key(c) not in chosen]  # Small site: fill up with the rest.
     chosen = chosen[:k]
 
     kept, total = [], 0
