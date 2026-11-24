@@ -32,6 +32,13 @@ class FakeResponse:
         self.url, self.text, self.status_code = url, text, status
         self.headers = {"Content-Type": content_type}
 
+    def iter_content(self, size):
+        body = self.text.encode()
+        yield from (body[i:i + size] for i in range(0, len(body), size))
+
+    def close(self):
+        pass
+
 
 def fake_site(url, **kwargs):
     pages = {
@@ -105,3 +112,12 @@ def test_crawl_stops_at_the_time_budget_and_keeps_pages_read():
 def test_max_pages_caps_the_sitemap_crawl():
     with mock.patch.object(website.requests, "get", side_effect=fake_site):
         assert len(read_website("example.com", max_pages=2)) == 2
+
+
+def test_oversized_sitemaps_are_refused(monkeypatch):
+    from brief import website
+    monkeypatch.setattr(website, "MAX_SITEMAP_BYTES", 100)
+    big = FakeResponse("https://example.com/sitemap.xml", "<urlset>" + "<url><loc>https://example.com/news</loc></url>" * 50)
+    monkeypatch.setattr(website.requests, "get", lambda url, **kw: big)
+    assert website.public_get(big.url, max_bytes=100) is None
+    assert website.public_get(big.url, max_bytes=10_000) is big

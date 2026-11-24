@@ -72,6 +72,13 @@ class FakeResponse:
         self.url, self.status_code, self.text = url, status, html
         self.headers = {"Content-Type": content_type}
 
+    def iter_content(self, size):
+        body = self.text.encode()
+        yield from (body[i:i + size] for i in range(0, len(body), size))
+
+    def close(self):
+        pass
+
 
 def fake_site(url, **kwargs):
     """A tiny pretend website: robots.txt blocks /careers, /about is fine, /blog is missing."""
