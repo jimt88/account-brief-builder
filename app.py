@@ -36,9 +36,10 @@ from brief.story_search import DB_NAME
 
 st.set_page_config(page_title="Account Brief Builder", page_icon="🍃", layout="centered")
 
-PAGES = ["New account", "Pipeline", "Brief", "How it works"]
+PAGES = ["New account", "Pipeline", "Dashboard", "Brief", "How it works"]
 PAGE_ICONS = {"New account": ":material/add_circle:", "Pipeline": ":material/leaderboard:",
-              "Brief": ":material/description:", "How it works": ":material/info:"}
+              "Dashboard": ":material/monitoring:", "Brief": ":material/description:",
+              "How it works": ":material/info:"}
 
 # Small extra styling on top of the theme in .streamlit/config.toml. It only targets
 # our own "abb-" classes, so Streamlit upgrades can't break it.
@@ -55,6 +56,18 @@ CSS = """
                          text-transform: uppercase; color: #00684A; margin-bottom: 4px;}
 .abb-callout .abb-text {font-size: 1.1rem; font-weight: 500;}
 .abb-quote {border-left: 3px solid #00ED64; padding-left: 12px; color: #3D4F58; font-style: italic;}
+.abb-flow {display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;
+            counter-reset: step;}
+.abb-step {border: 1px solid #C1CCC6; border-radius: 10px; padding: 10px 12px; background: #FFFFFF;
+           counter-increment: step; font-size: 0.85rem; color: #3D4F58;}
+.abb-step b {display: block; color: #001E2B; font-size: 0.9rem; margin-bottom: 2px;}
+.abb-step b::before {content: counter(step) ". "; color: #00684A;}
+.abb-step span {display: block;}
+.abb-atlas {background: #E3FCF7; border-color: #00A35C;}
+.abb-legend {font-size: 0.8rem; color: #5C6C75; margin-top: 6px; display: flex; align-items: center; gap: 6px;}
+.abb-dot {width: 12px; height: 12px; border-radius: 3px; background: #E3FCF7; border: 1px solid #00A35C;}
+.abb-kicker {font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+             color: #00684A; margin: 8px 0 2px;}
 </style>
 """
 
@@ -219,19 +232,27 @@ def show_brief(a: dict) -> None:
                             if any(x["type"] == SignalType.MONGODB_IN_USE.value for x in a["signals"]) else [])))
     st.markdown(md(p["what_they_do"]))
 
-    col_score, col_story = st.columns(2)
-    with col_score.container(border=True):
-        st.metric("Account score", f"{a['score']}/100")
-        st.badge(f"{len(a['signals'])} verified signals", color=score_colour(a["score"]))
-    with col_story.container(border=True):
-        st.metric("Matched customer story", s["company"])
-        st.badge(f"similarity {s['score']:.2f}", color="green")
+    counts = {group: sum(1 for x in a["signals"] if signal_group(x) == group) for group in SIGNAL_GROUPS}
+    with st.container(horizontal=True, wrap=True):
+        st.metric("Score", f"{a['score']}/100", border=True)
+        st.metric("Verified signals", len(a["signals"]), border=True,
+                  help=" · ".join(f"{g} {n}" for g, n in counts.items() if n) or None)
+        st.metric("Matched story", s["company"], border=True, help=f"Similarity {s['score']:.2f}")
+    if a["score_breakdown"]:
+        top = a["score_breakdown"][0]
+        same_type = [x for x in a["signals"] if x["type"] == top.get("type")]
+        # The line's evidence URL points at the signal that scored, not just the first of its type.
+        quote = next((x for x in same_type if x["source_url"] == top.get("evidence")),
+                     same_type[0] if same_type else None)
+        st.markdown(f"**Top reason to call:** {md(top['reason'])}")
+        if quote:
+            st.html(f'<div class="abb-quote">"{html.escape(quote["quote"])}"</div>')
 
     if a.get("warnings"):
         st.warning("**Check before using:**\n" + "\n".join(f"- {md(w)}" for w in a["warnings"]))
     else:
-        st.success("Checks passed: lengths OK, every number is in the evidence, no vendor claims.",
-                   icon=":material/verified:")
+        st.caption(":material/verified: Checks passed: lengths OK, every number is in the evidence, "
+                   "no vendor claims.")
 
     outreach, evidence, story, details = st.tabs(
         [":material/campaign: Outreach", ":material/fact_check: Evidence",
@@ -239,24 +260,24 @@ def show_brief(a: dict) -> None:
 
     with outreach:
         callout("Value hook", b["value_hook"])
-        st.subheader("Why now", anchor=False)
+        st.html('<div class="abb-kicker">Why now</div>')
         st.markdown("\n".join(f"- {md(x)}" for x in b["why_now"]))
-        st.subheader("Who to contact", anchor=False)
-        st.caption("Hypotheses to check before reaching out.")
-        for x in b["personas"]:
-            with st.container(border=True):
+        st.html('<div class="abb-kicker">Who to contact (hypotheses to check)</div>')
+        for column, x in zip(st.columns(len(b["personas"]) or 1), b["personas"]):
+            with column.container(border=True):
                 st.markdown(f"**{x['side']}:** {md(x['role'])}")
                 st.caption(x["why"])
-        st.subheader("30-second cold-call opener", anchor=False)
-        st.code(b["cold_call_opener"], language=None, wrap_lines=True)
-        st.subheader("Email", anchor=False)
-        st.code(f"Subject: {b['email']['subject']}\n\n{b['email']['body']}", language=None, wrap_lines=True)
-        st.caption("Use the copy icon on the top right of the opener or the email.")
-        st.subheader("Discovery questions", anchor=False)
+        call, email = st.tabs([":material/call: Cold-call opener (30 s)", ":material/mail: Email"])
+        with call:
+            st.code(b["cold_call_opener"], language=None, wrap_lines=True)
+        with email:
+            st.code(f"Subject: {b['email']['subject']}\n\n{b['email']['body']}", language=None, wrap_lines=True)
+        st.caption("Copy with the icon at the top right of the text.")
+        st.html('<div class="abb-kicker">Discovery questions</div>')
         st.markdown("\n".join(f"{n}. {md(q)}" for n, q in enumerate(b["discovery_questions"], start=1)))
 
     with evidence:
-        st.subheader(f"Score: {a['score']}/100", anchor=False)
+        st.subheader("Why this score", anchor=False)
         rows = [{"Reason": x["reason"], "Points": x["points"], "Maths": x.get("maths", ""),
                  "Evidence": x.get("evidence") or None} for x in a["score_breakdown"]]
         if rows:
@@ -286,7 +307,7 @@ def show_brief(a: dict) -> None:
             in_group = [(n, x) for n, x in numbered if signal_group(x) == group]
             if not in_group:
                 continue
-            st.markdown(f"**{group}** ({len(in_group)})")
+            st.html(f'<div class="abb-kicker">{group} ({len(in_group)})</div>')
             for n, x in in_group:
                 with st.container(border=True):
                     used = " " + badge("used in the brief", "green", ":material/check:") if n in b["signals_used"] else ""
@@ -331,11 +352,10 @@ def show_brief(a: dict) -> None:
 
 def page_new_account() -> None:
     st.subheader("Research a new account", anchor=False)
-    st.caption("Public pages only: no logins, LinkedIn or paywalls. Takes about a minute.")
     # A horizontal container keeps the three cards in one row on phones too.
     steps = st.container(horizontal=True, wrap=False)
     for icon, title, text in [
-        (":material/travel_explore:", "Read", "Up to 4 public pages"),
+        (":material/travel_explore:", "Read", "Website, job ads, news and GitHub"),
         (":material/fact_check:", "Verify", "Signals with exact quotes"),
         (":material/hub:", "Match", "Closest MongoDB story"),
     ]:
@@ -389,28 +409,27 @@ def show_dashboard(numbers: dict) -> None:
         ("Signals by source", pd.DataFrame(numbers["by_source"]), "source", "count"),
         ("Technologies seen", pd.DataFrame(numbers["technologies"]), "technology", "count"),
     ]
-    for (title, frame, x, y), column in zip(charts, st.columns(3) + st.columns(3)):
+    for (title, frame, x, y), column in zip(charts, st.columns(2) + st.columns(2) + st.columns(2)):
         with column:
             st.markdown(f"**{title}**")
             if frame.empty:
                 st.caption("Nothing yet.")
             else:
                 # Horizontal bars keep long labels readable on a phone.
-                st.bar_chart(frame, x=x, y=y, horizontal=True, sort=False, height=220,
+                st.bar_chart(frame, x=x, y=y, horizontal=True, sort=False, height=240,
                              x_label="", y_label="", color="#00684A")
-    st.caption("One MongoDB $facet aggregation computes everything on this panel.")
-    with st.expander("Show the aggregation"):
+    st.caption("Every number and chart on this page comes from one MongoDB query: a `$facet` "
+               "aggregation that runs all the groupings in a single trip to the database.")
+    with st.expander("See the MongoDB query behind these charts"):
         st.code(json.dumps(DASHBOARD_PIPELINE, indent=2), language="json")
 
 
 def page_pipeline() -> None:
     try:
-        numbers = dashboard(accounts())
         rows = pipeline_rows(accounts())
     except Exception as exc:
         st.error(friendly_error(exc))
         return
-    show_dashboard(numbers)  # Shown even when empty: zero tiles and the aggregation.
     if not rows:
         st.info("No accounts yet. Build one on the New account page.")
         return
@@ -424,12 +443,15 @@ def page_pipeline() -> None:
     version = "|".join(f"{r['domain']}:{r['status']}:{r['updated_at']}" for r in rows)
     edited = st.data_editor(
         table, hide_index=True, width="stretch", key=f"pipeline_{hash(version)}",
+        height=35 * (len(table) + 1) + 3,  # Every row visible, no inner scrollbar.
         column_order=["Company", "Score", "Top signal", "Status", "Updated"],
         disabled=["Company", "Score", "Top signal", "Updated"],
         column_config={
-            "Status": st.column_config.SelectboxColumn(options=STATUSES, required=True),
-            "Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d"),
-            "Updated": st.column_config.DatetimeColumn(format="D MMM, HH:mm"),
+            "Company": st.column_config.TextColumn(width=130),
+            "Top signal": st.column_config.TextColumn(width="medium"),
+            "Status": st.column_config.SelectboxColumn(options=STATUSES, required=True, width="small"),
+            "Score": st.column_config.ProgressColumn(min_value=0, max_value=100, format="%d", width="small"),
+            "Updated": st.column_config.DatetimeColumn(format="D MMM", width="small"),
         },
     )
     changed = edited[edited["Status"] != table["Status"]]
@@ -441,13 +463,17 @@ def page_pipeline() -> None:
     if "saved_message" in st.session_state:
         st.toast(st.session_state.pop("saved_message"))
 
-    with st.container(border=True):
-        choice = st.selectbox("Open a brief", [r["domain"] for r in rows],
-                              format_func=account_labels(rows).get)
-        st.button("Open brief", on_click=open_brief, args=(choice,), width="stretch", type="primary",
-                  icon=":material/description:")
     st.download_button("Export CSV (Salesforce lead columns)", pipeline_csv(rows), icon=":material/download:",
                        file_name="pipeline.csv", mime="text/csv", width="stretch")
+
+
+def page_dashboard() -> None:
+    try:
+        numbers = dashboard(accounts())
+    except Exception as exc:
+        st.error(friendly_error(exc))
+        return
+    show_dashboard(numbers)  # Shown even when empty: zero tiles and the query.
 
 
 def page_brief() -> None:
@@ -475,58 +501,116 @@ def page_brief() -> None:
     show_brief(account)
 
 
-def page_how_it_works() -> None:
-    st.markdown("""
-**The flow**
+# (title, detail, runs in Atlas?) for the architecture strip on How it works.
+ARCHITECTURE = [
+    ("Public sources", "Website (30 pages), job ads, news, GitHub", False),
+    ("page_cache + page_chunks", "24-hour TTL cache; pages cut into chunks", True),
+    ("$vectorSearch", "Voyage AI picks the 15 best passages", True),
+    ("Gemini", "Signals with quotes; unverifiable quotes dropped", False),
+    ("Score v2", "Points × source × age, 0-100", False),
+    ("stories: $rankFusion", "Vector Search + Atlas Search, same industry", True),
+    ("Gemini", "Writes the brief from verified evidence", False),
+    ("accounts", "Upsert with history; Pipeline and $facet Dashboard", True),
+]
 
-1. **Read public pages.** Up to 30 pages picked from the site's sitemap (careers,
-   engineering, news, investors, strategy, ...; 10 s each, 60 s in total). Respects
-   robots.txt; never logs in; no LinkedIn or paywalls. Pages read in the last 24 hours
-   come from a MongoDB cache instead of the web.
-   **Job ads:** if the careers page links to a public job board (Greenhouse, Lever,
-   Ashby, SmartRecruiters, Personio or Workable), the app reads its public feed and
-   keeps the 25 newest technical roles, with dates. Emails and phone numbers are removed.
-   **News:** one search of GDELT's free news index (last 3 months, company name in the
-   headline, up to 8 articles); paywalled or login-only articles are skipped.
-   **GitHub:** if the site links to its GitHub org, the dependency files of its 10 most
-   recently pushed public repos (e.g. `pymongo`, `psycopg2`, `kafkajs`) become signals,
-   quoting the exact line.
-2. **Find signals.** Gemini lists signals (AI initiative, hiring engineers, legacy
-   database, competitor database, MongoDB already in use, modernisation, scale or
-   real time, new market or product), each with a quote. Job ads count as the
-   strongest evidence of the stack a company really uses. **Any quote that isn't word for word on the page is dropped.**
-3. **Score 0–100.** Each signal type counts once, using its strongest signal: base
-   points (+25 AI initiative, +20 hiring engineers, +20 legacy database, +15 competitor
-   database, +15 modernisation, +15 MongoDB already in use, +10 scale or real time)
-   × source strength (job ad or GitHub 1.0, news 0.9, extra link 0.8, website 0.7)
-   × recency (up to 90 days 1.0, 180 days 0.75, a year 0.5, older 0.25, no date 0.8).
-   Plus +5 for 5 or more open technical roles (+10 for 20 or more) and +10 for an HQ in
-   EMEA. Every line in the saved breakdown shows its maths.
-4. **Match a customer story.** Hybrid search finds the closest of 48 public MongoDB
-   customer stories, pre-filtered to the same industry: `$rankFusion` merges Atlas
-   Vector Search (meaning) with Atlas Search (keywords), so a story ranked high in both
-   wins. Atlas turns the text into vectors itself with Voyage AI (automated embedding).
-   If the keyword index is missing it falls back to Vector Search only.
-5. **Write the brief.** Gemini writes it from the verified evidence only; automatic
-   checks flag numbers or vendor names that aren't in the evidence.
-6. **Save the account** in MongoDB, ranked in the Pipeline.
 
-**MongoDB features used, and why**
+def architecture_html() -> str:
+    boxes = "".join(
+        f'<div class="abb-step{" abb-atlas" if atlas else ""}"><b>{html.escape(title)}</b>'
+        f"<span>{html.escape(detail)}</span></div>"
+        for title, detail, atlas in ARCHITECTURE)
+    return (CSS + f'<div class="abb-flow">{boxes}</div>'
+            '<div class="abb-legend"><span class="abb-dot"></span>Runs in MongoDB Atlas</div>')
 
-| Feature | Where | Why |
+
+SCORING_POINTS = """
+| Signal | Points |
+|---|---|
+| AI initiative | 25 |
+| Legacy database | 20 |
+| Hiring engineers | 20 |
+| Competitor database | 15 |
+| Modernisation | 15 |
+| Uses MongoDB (expansion) | 15 |
+| Scale or real time | 10 |
+"""
+
+SCORING_SOURCE = """
+| Source | × |
+|---|---|
+| Job ad or GitHub | 1.0 |
+| News | 0.9 |
+| Pasted link | 0.8 |
+| Website | 0.7 |
+"""
+
+SCORING_AGE = """
+| Age | × |
+|---|---|
+| Up to 3 months | 1.0 |
+| Up to 6 months | 0.75 |
+| Up to a year | 0.5 |
+| Older | 0.25 |
+| No date | 0.8 |
+"""
+
+
+MONGODB_FEATURES = """
+| Feature | What it does here | Why it helps |
 |---|---|---|
-| Atlas (free M0 cluster) | Hosts `adr_brief` | Fully managed, free to start |
-| Document model | One document per account and per story, with signals, score breakdown, brief and history embedded | Data that's read together is stored together: one read shows a whole brief |
-| Atlas Vector Search with automated embedding | `stories.search_text` + `industry_group` (`story_autoembed_index`, Voyage AI `voyage-4`) | Atlas embeds the stories and each query itself, so the app has no embedding code; matches by meaning, limited to the same industry, in the same database as the data |
-| Aggregation pipeline | Pipeline page | Sorts and shapes accounts on the server |
-| Schema validation | `stories`, `accounts` | Flexible documents, but bad data (e.g. a score of 150) is rejected |
-| Unique indexes | `stories.source_url`, `accounts.domain` | Re-running never creates duplicates |
-| `$facet` aggregation | Pipeline dashboard | One aggregation returns the status counts, average score by industry, signal counts and totals, in one round trip |
-| Atlas Search + `$rankFusion` | Story match | Keyword search (`story_text_index`) and Vector Search ranked together with Reciprocal Rank Fusion, both filtered to the same industry, in one aggregation |
-| TTL index | `page_cache.fetched_at` | Cached pages are deleted by MongoDB about 24 hours after download (the TTL monitor runs about once a minute), so re-runs are fast and polite |
-| Atomic pipeline upsert | Saving an account | An aggregation-pipeline update (`$concatArrays`, `$slice`, `$literal`) archives the old version inside the same write (last 5 kept), so two rebuilds at once can't lose or duplicate a brief |
-| PyMongo driver | Everywhere | The supported way to connect (no Data API) |
+| Atlas (free M0) | Hosts the `adr_brief` database | Fully managed, free |
+| Document model | One document per account: signals, score maths, brief, story and history | One read shows a whole brief; new fields need no migration |
+| Vector Search + Voyage AI | Picks the best passages and the closest customer story by meaning | Atlas creates the embeddings itself, so the app has no embedding code |
+| Atlas Search + `$rankFusion` | Mixes keyword and meaning ranks for the story match | A story strong on both wins |
+| Aggregation pipeline | Ranks the Pipeline page | Sorting and shaping run in the database |
+| `$facet` | Computes every Dashboard tile and chart | One query, one round trip |
+| TTL indexes | Delete cached pages and chunks after 24 hours | Fast re-runs; MongoDB cleans up by itself |
+| Schema validation | Rejects bad data (e.g. a score of 150) | Flexible documents with guardrails |
+| Unique indexes | One document per company and per story | Re-running updates instead of duplicating |
+| Atomic upsert | Saves the new brief and archives the old one in one write | Nothing lost if two people rebuild at once |
+| Least-privilege user | The app can only read and write `adr_brief` | Safe by default |
+"""
+
+
+def page_how_it_works() -> None:
+    st.markdown("**In 30 seconds:** type a company and its website. The app reads public pages, "
+                "keeps only claims it can quote word for word, scores the account, finds the closest "
+                "MongoDB customer story and writes a call-ready brief. Everything is saved in MongoDB Atlas.")
+
+    st.subheader("The flow", anchor=False)
+    st.markdown("""
+1. **Read.** Up to 30 website pages from the sitemap, plus job ads (public job boards),
+   recent news (GDELT) and GitHub dependency files. Public pages only: robots.txt is
+   respected, and there are no logins, LinkedIn or paywalls.
+2. **Pick passages.** Pages are cut into chunks; one Atlas Vector Search query picks the
+   15 most relevant for Gemini.
+3. **Find signals.** Gemini lists buying signals with a quote each. **Any quote that isn't
+   word for word on the page is dropped.**
+4. **Score and match.** The account gets a score (below), and hybrid search finds the
+   closest of 48 MongoDB customer stories in the same industry.
+5. **Write and save.** Gemini writes the brief from verified evidence only; checks flag
+   any number or vendor not in the evidence. The account is saved and ranked.
 """)
+
+    st.subheader("How scoring works", anchor=False)
+    st.markdown("Each signal type counts **once**, using its strongest piece of evidence: "
+                "**points × source × age**, rounded. The total is capped at 100.")
+    points, source, age = st.columns([5, 4, 4])
+    points.markdown(SCORING_POINTS)
+    source.markdown(SCORING_SOURCE)
+    age.markdown(SCORING_AGE)
+    st.markdown("**Bonuses:** +5 for 5 or more open technical roles (+10 for 20 or more), "
+                "+10 for a headquarters in EMEA.")
+    st.info("**Example:** an AI initiative in a 1-month-old job ad scores 25 × 1.0 × 1.0 = **25**. "
+            "The same claim on an undated website page scores 25 × 0.7 × 0.8 = **14**. "
+            "Fresh, hard evidence ranks an account higher.", icon=":material/calculate:")
+    st.caption("The Evidence tab of every brief shows each line's maths and a link to its source.")
+
+    st.subheader("Architecture", anchor=False)
+    st.html(architecture_html())
+
+    st.subheader("MongoDB features used, and why", anchor=False)
+    st.markdown(MONGODB_FEATURES)
 
 
 # ---- Main -------------------------------------------------------------------
@@ -543,7 +627,7 @@ if get_setting("GITHUB_TOKEN"):  # Optional: brief/github.py reads it from the e
 st.session_state.setdefault("page", PAGES[0])
 page = st.segmented_control("Page", PAGES, key="page", required=True, width="stretch",
                             format_func=lambda name: f"{PAGE_ICONS[name]} {name}", label_visibility="collapsed")
-{"New account": page_new_account, "Pipeline": page_pipeline,
+{"New account": page_new_account, "Pipeline": page_pipeline, "Dashboard": page_dashboard,
  "Brief": page_brief, "How it works": page_how_it_works}[page]()
 st.divider()
 st.caption("Built on MongoDB Atlas: document model, Atlas Search, Vector Search with Voyage AI and aggregation pipelines. "
