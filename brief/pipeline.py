@@ -106,8 +106,8 @@ def build_brief(
         progress(f"News: {news['articles_found']} recent articles, {news['articles_read']} readable")
     if news_note:
         skipped.append(news_note)
-    seen = {p.url for p in pages}
-    pages += [p for p in news_pages if p.url not in seen]
+    news_urls = {p.url for p in news_pages}  # The dated news copy beats the same URL read undated.
+    pages = [p for p in pages if p.url not in news_urls] + news_pages
     for note in skipped:
         progress(note)
 
