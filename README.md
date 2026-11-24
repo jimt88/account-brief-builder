@@ -25,7 +25,7 @@ flowchart LR
     CV --> G1[Gemini: signals from<br/>the 15 best passages]
     G1 --> V{Quote on the page<br/>word for word?}
     V -- no --> X[Dropped]
-    V -- yes --> S[Score 0-100<br/>with breakdown]
+    V -- yes --> S[Score v2, 0-100<br/>base × source × recency<br/>breakdown with maths]
     S --> Q[Story query text]
     Q --> AS[Atlas Search<br/>story_text_index<br/>keywords]
     Q --> AV[Atlas Vector Search<br/>story_autoembed_index<br/>meaning]
@@ -76,6 +76,8 @@ Code: `brief/website.py` (reader), `brief/signals.py` (signals + quote check),
   free personal token with no scopes) for 5,000 an hour.
 - **GDELT news:** about one request every 5 seconds per IP; one per brief. If it's busy
   the brief is built without news.
+- **Job boards:** public feeds from Greenhouse, Lever, Ashby, SmartRecruiters, Personio
+  and Workable need no key; only boards linked from the company's careers page are read.
 - **Atlas M0:** 512 MB storage and shared resources. Fine for hundreds of accounts
   (page chunks are deleted after 24 hours). Up to 3 search/vector indexes per cluster
   (sample datasets count too); this app uses all 3 (`story_autoembed_index`,
@@ -165,6 +167,10 @@ stated HQ country for most of these pages, so the EMEA bonus applied only to N26
 | Site blocks readers (403) or robots.txt | "Could not open… try the corporate/investor site or paste extra links" |
 | JavaScript-only pages | Skipped with a note ("probably needs JavaScript") |
 | No quotable signals | Suggests the newsroom/investor site or a press release |
+| GDELT news busy (429) or slow | Brief is built without news: "Skipped news: GDELT news search is busy" |
+| GitHub API limit (60 an hour without a token) | Brief is built without GitHub evidence, with a note; set `GITHUB_TOKEN` to raise it |
+| No public job board linked | No job-ad signals and no hiring-volume bonus; paste the careers page in Extra links |
+| Atlas embedding limit (~3 a minute on M0) | "Atlas embedding limit reached, try again in a minute" |
 | Streamlit app asleep | First load takes ~30 s; open it a few minutes before the demo |
 
 Tip: run your demo company once before the meeting; the Pipeline page then shows it
@@ -173,10 +179,14 @@ instantly even if Gemini is busy during the demo.
 ## What's next
 
 - A "paste text" box for sites that block readers.
-- Change streams to notify when an account's score changes on re-run.
+- Change streams to notify when an account's score changes on re-run (change-stream
+  alerts, e.g. "Bank of Ireland moved from 28 to 45").
+- Annual-report PDFs: read the latest annual report's strategy and technology sections.
 
 **Rules this project follows:** no secrets in git, no Atlas Data API / App Services,
-free tiers only, public pages only (no logins, LinkedIn or paywalls).
+free tiers only, public pages only (no logins, LinkedIn or paywalls), and no personal
+data: emails and phone numbers are removed from job ads, GitHub evidence is limited to
+dependency lines, and personas are roles (a hypothesis), never named people.
 
 ## Stack
 
